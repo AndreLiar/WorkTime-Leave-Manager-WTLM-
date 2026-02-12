@@ -2,22 +2,22 @@
 
 API minimale en Node.js avec NestJS pour gérer les temps de travail et les congés.
 
-## 🚀 Fonctionnalités
+## Fonctionnalités
 
-- ✅ API REST avec NestJS
-- ✅ TypeScript configuré
-- ✅ ESLint pour le linting
-- ✅ Tests unitaires avec Jest
-- ✅ Docker pour la containerisation
-- ✅ CI/CD avec GitHub Actions
+- API REST avec NestJS
+- TypeScript configuré
+- ESLint pour le linting
+- Tests unitaires avec Jest
+- Docker pour la containerisation
+- CI/CD avec GitHub Actions
 
-## 📋 Prérequis
+## Prérequis
 
 - Node.js 18+
 - npm
 - Docker (optionnel)
 
-## 🛠️ Installation
+## Installation
 
 ```bash
 # Cloner le repository
@@ -28,7 +28,7 @@ cd WorkTime-Leave-Manager-WTLM-
 npm install
 ```
 
-## 🏃 Démarrage
+## Démarrage
 
 ### Mode développement
 ```bash
@@ -53,7 +53,7 @@ docker build -t wtlm-api .
 docker run -p 3000:3000 wtlm-api
 ```
 
-## 🧪 Tests
+## Tests
 
 ```bash
 # Run tous les tests
@@ -66,7 +66,7 @@ npm run test:watch
 npm run test:cov
 ```
 
-## 🔍 Linting
+## Linting
 
 ```bash
 # Vérifier TypeScript
@@ -76,7 +76,7 @@ npm run ts
 npm run lint
 ```
 
-## 📚 API Endpoints
+## API Endpoints
 
 ### GET /
 Retourne les informations générales de l'API
@@ -101,7 +101,7 @@ Retourne le statut de santé de l'API
 }
 ```
 
-## 🔄 Workflow Git
+## Workflow Git
 
 Le projet utilise deux branches principales :
 - `develop` / `staging` : pour le développement
@@ -115,7 +115,7 @@ La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main`
 4. Tests unitaires
 5. Build de l'application
 
-## 📦 Scripts npm
+## Scripts npm
 
 - `npm run build` : Compile le projet TypeScript
 - `npm run start` : Démarre l'application en mode production
@@ -126,7 +126,7 @@ La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main`
 - `npm run test:watch` : Exécute les tests en mode watch
 - `npm run test:cov` : Exécute les tests avec couverture
 
-## 🏗️ Structure du projet
+## Structure du projet
 
 ```
 .
@@ -150,6 +150,6 @@ La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main`
 └── package.json           # Dépendances et scripts
 ```
 
-## 📝 License
+## License
 
 ISC
