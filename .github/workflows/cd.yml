@@ -56,7 +56,18 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Deploy to Render
+        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
-          curl -X POST "$RENDER_DEPLOY_HOOK"
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "⚠️ RENDER_DEPLOY_HOOK is not set. Skipping Render deployment."
+            echo "ℹ️ To enable automatic deployment, add RENDER_DEPLOY_HOOK secret to your repository."
+            exit 0
+          fi
+          echo "🚀 Triggering Render deployment..."
+          curl -f -X POST "$RENDER_DEPLOY_HOOK" || {
+            echo "❌ Failed to trigger Render deployment"
+            exit 1
+          }
+          echo "✅ Render deployment triggered successfully"
