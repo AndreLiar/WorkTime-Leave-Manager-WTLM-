@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import Database = require('better-sqlite3');
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -14,7 +14,7 @@ export class DatabaseService {
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    this.db = new Database(finalPath);
+    this.db = Database(finalPath);
     this.initializeTables();
   }
 
