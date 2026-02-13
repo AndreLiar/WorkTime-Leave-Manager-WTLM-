@@ -87,32 +87,59 @@ jobs:
           RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
         run: |
           if [ -z "$RENDER_APP_URL" ]; then
-            echo "ℹ️ RENDER_APP_URL not set. Skipping deployment verification."
-            echo "Add RENDER_APP_URL secret with your Render app URL to enable automatic testing."
-            exit 0
+            echo "⚠️ RENDER_APP_URL not set!"
+            echo "❌ Cannot verify deployment without app URL."
+            echo "Add RENDER_APP_URL secret to your repository: Settings → Secrets → Actions"
+            exit 1
           fi
           
-          echo "⏳ Waiting for deployment to complete (max 3 minutes)..."
-          MAX_ATTEMPTS=18
+          echo "⏳ Waiting for Render deployment to complete..."
+          echo "📦 Deployment ID: ${{ steps.deploy.outputs.deploy_id }}"
+          echo "🌐 Target URL: $RENDER_APP_URL"
+          echo ""
+          echo "⚠️  Note: Render deployments can take 5-10 minutes for Docker builds"
+          echo ""
+          
+          MAX_ATTEMPTS=60
           ATTEMPT=0
+          WAIT_TIME=10
           
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            sleep 10
+            sleep $WAIT_TIME
             ATTEMPT=$((ATTEMPT + 1))
-            echo "🔍 Checking deployment status (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
+            ELAPSED=$((ATTEMPT * WAIT_TIME))
+            echo "🔍 [$ELAPSED s] Checking deployment status (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
             
             if curl -f -s --max-time 10 "$RENDER_APP_URL/health" > /dev/null 2>&1; then
-              echo "✅ Deployment successful! App is responding."
-              echo "🌐 Your app is live at: $RENDER_APP_URL"
               echo ""
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "✅ Deployment successful! App is responding."
+              echo "🌐 Your app is live at: $RENDER_APP_URL"
+              echo "⏱️  Total deployment time: $ELAPSED seconds"
+              echo ""
               echo "🎯 Test your endpoints:"
               echo "   • Health check: $RENDER_APP_URL/health"
               echo "   • App info: $RENDER_APP_URL/"
+              echo "   • Leave requests: $RENDER_APP_URL/leave-requests"
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               exit 0
             fi
           done
           
-          echo "⚠️ Deployment verification timed out. Check Render dashboard manually."
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ Deployment verification failed!"
+          echo "⏱️  Timeout after $((MAX_ATTEMPTS * WAIT_TIME)) seconds"
           echo "🌐 App URL: $RENDER_APP_URL"
+          echo ""
+          echo "Possible reasons:"
+          echo "  • Render deployment is taking longer than expected"
+          echo "  • Application failed to start (check Render logs)"
+          echo "  • Health endpoint is not responding"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Check Render dashboard: https://dashboard.render.com/"
+          echo "  2. View deployment logs for errors"
+          echo "  3. Manually test: $RENDER_APP_URL/health"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          exit 1
