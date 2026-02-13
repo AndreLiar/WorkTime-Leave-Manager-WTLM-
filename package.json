@@ -16,7 +16,7 @@
     "test:cov": "jest --coverage",
     "test:integration": "npm run build && npm run start:integration",
     "start:integration": "node dist/main & sleep 5 && newman run test/postman/leave-request-api.postman_collection.json && kill $!",
-    "prepare": "husky"
+    "postinstall": "husky || true"
   },
   "lint-staged": {
     "*.ts": [
