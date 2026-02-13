@@ -4,7 +4,6 @@ import { AppInfoService } from './app-info.service';
 
 describe('AppInfoController', () => {
   let appInfoController: AppInfoController;
-  let appInfoService: AppInfoService;
 
   beforeEach(async () => {
     const app: TestingModule = await Test.createTestingModule({
@@ -13,7 +12,6 @@ describe('AppInfoController', () => {
     }).compile();
 
     appInfoController = app.get<AppInfoController>(AppInfoController);
-    appInfoService = app.get<AppInfoService>(AppInfoService);
   });
 
   describe('root', () => {
