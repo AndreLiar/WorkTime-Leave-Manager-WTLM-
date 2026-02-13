@@ -153,3 +153,35 @@ La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main`
 ## License
 
 ISC
+
+## API Endpoints
+
+The WorkTime Leave Manager API provides the following endpoints:
+
+### Health Check
+- `GET /health` - Check application health and uptime
+
+### Leave Request Management
+- `POST /leave-requests` - Create a new leave request
+- `GET /leave-requests` - List all leave requests
+- `GET /leave-requests?employeeId={id}` - Filter requests by employee
+- `GET /leave-requests/:id` - Get a specific leave request
+- `GET /leave-requests/statistics` - Get overall leave statistics
+- `GET /leave-requests/statistics?employeeId={id}` - Get employee-specific statistics
+- `PATCH /leave-requests/:id/approve` - Approve a leave request
+- `PATCH /leave-requests/:id/reject` - Reject a leave request
+- `DELETE /leave-requests/:id` - Delete a leave request
+
+### Testing with Postman
+
+Import the `WorkTime-Leave-Manager.postman_collection.json` file into Postman to test all endpoints.
+
+## Deployment Status
+
+The application uses a robust CI/CD pipeline with:
+- ✅ Automated testing on pull requests
+- ✅ Docker image building and publishing to GHCR
+- ✅ Render API integration for accurate deployment verification
+- ✅ Real-time deployment status tracking
+
+For deployment setup details, see [RENDER-API-SETUP.md](./RENDER-API-SETUP.md).
