@@ -56,8 +56,10 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Deploy to Render
+        id: deploy
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK" ]; then
             echo "⚠️ RENDER_DEPLOY_HOOK is not set. Skipping Render deployment."
@@ -65,8 +67,52 @@ jobs:
             exit 0
           fi
           echo "🚀 Triggering Render deployment..."
-          curl -f -X POST "$RENDER_DEPLOY_HOOK" || {
-            echo "❌ Failed to trigger Render deployment"
-            exit 1
-          }
+          RESPONSE=$(curl -f -X POST "$RENDER_DEPLOY_HOOK")
+          echo "$RESPONSE"
+          
+          DEPLOY_ID=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+          echo "deploy_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
+          
           echo "✅ Render deployment triggered successfully"
+          echo "📦 Deployment ID: $DEPLOY_ID"
+          
+          if [ -n "$RENDER_APP_URL" ]; then
+            echo "🌐 App URL: $RENDER_APP_URL"
+            echo "app_url=$RENDER_APP_URL" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Wait for deployment
+        if: steps.deploy.outputs.deploy_id != ''
+        env:
+          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+        run: |
+          if [ -z "$RENDER_APP_URL" ]; then
+            echo "ℹ️ RENDER_APP_URL not set. Skipping deployment verification."
+            echo "Add RENDER_APP_URL secret with your Render app URL to enable automatic testing."
+            exit 0
+          fi
+          
+          echo "⏳ Waiting for deployment to complete (max 3 minutes)..."
+          MAX_ATTEMPTS=18
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            sleep 10
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "🔍 Checking deployment status (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
+            
+            if curl -f -s --max-time 10 "$RENDER_APP_URL/health" > /dev/null 2>&1; then
+              echo "✅ Deployment successful! App is responding."
+              echo "🌐 Your app is live at: $RENDER_APP_URL"
+              echo ""
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "🎯 Test your endpoints:"
+              echo "   • Health check: $RENDER_APP_URL/health"
+              echo "   • App info: $RENDER_APP_URL/"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              exit 0
+            fi
+          done
+          
+          echo "⚠️ Deployment verification timed out. Check Render dashboard manually."
+          echo "🌐 App URL: $RENDER_APP_URL"

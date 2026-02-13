@@ -50,15 +50,24 @@ GitHub Container Registry is free for public repositories. The workflow uses `GI
 2. Scroll down to "Deploy Hook"
 3. Copy the deploy hook URL (looks like: `https://api.render.com/deploy/srv-xxxxx?key=yyyyy`)
 
-### 4. Add GitHub Secret
+### 4. Add GitHub Secrets
 
 1. Go to your GitHub repository
 2. Navigate to "Settings" → "Secrets and variables" → "Actions"
 3. Click "New repository secret"
-4. Add:
+4. Add the following secrets:
+
+   **Secret 1: Deploy Hook**
    - **Name**: `RENDER_DEPLOY_HOOK`
-   - **Value**: Paste the Render deploy hook URL
-5. Click "Add secret"
+   - **Value**: Paste the Render deploy hook URL from step 3
+   - Click "Add secret"
+   
+   **Secret 2: App URL (Optional but Recommended)**
+   - **Name**: `RENDER_APP_URL`
+   - **Value**: Your Render app URL (e.g., `https://your-app.onrender.com`)
+   - Click "Add secret"
+   
+   This enables automatic deployment verification and displays the app URL in workflow logs.
 
 ## How It Works
 
