@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
-export class AppService {
+export class AppInfoService {
   getRoot(): object {
     return {
       message: 'Welcome to WorkTime Leave Manager API',
@@ -10,14 +10,6 @@ export class AppService {
         health: '/health',
         root: '/',
       },
-    };
-  }
-
-  getHealth(): object {
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
     };
   }
 }

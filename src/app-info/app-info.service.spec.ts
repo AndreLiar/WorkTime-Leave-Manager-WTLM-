@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppService } from './app.service';
+import { AppInfoService } from './app-info.service';
 
-describe('AppService', () => {
-  let service: AppService;
+describe('AppInfoService', () => {
+  let service: AppInfoService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AppService],
+      providers: [AppInfoService],
     }).compile();
 
-    service = module.get<AppService>(AppService);
+    service = module.get<AppInfoService>(AppInfoService);
   });
 
   it('should be defined', () => {
@@ -27,15 +27,6 @@ describe('AppService', () => {
           root: '/',
         },
       });
-    });
-  });
-
-  describe('getHealth', () => {
-    it('should return health status with ok', () => {
-      const result = service.getHealth();
-      expect(result).toHaveProperty('status', 'ok');
-      expect(result).toHaveProperty('timestamp');
-      expect(result).toHaveProperty('uptime');
     });
   });
 });
