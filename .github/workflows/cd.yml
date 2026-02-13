@@ -62,67 +62,155 @@ jobs:
         id: deploy
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK" ]; then
             echo "⚠️ RENDER_DEPLOY_HOOK is not set. Skipping Render deployment."
             echo "ℹ️ To enable automatic deployment, add RENDER_DEPLOY_HOOK secret to your repository."
             exit 0
           fi
+          
           echo "🚀 Triggering Render deployment..."
-          RESPONSE=$(curl -f -X POST "$RENDER_DEPLOY_HOOK")
+          RESPONSE=$(curl -f -s -X POST "$RENDER_DEPLOY_HOOK")
           echo "$RESPONSE"
           
-          DEPLOY_ID=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+          DEPLOY_ID=$(echo "$RESPONSE" | jq -r '.deploy.id // empty')
+          
+          if [ -z "$DEPLOY_ID" ]; then
+            echo "⚠️ Could not extract deployment ID from response"
+            DEPLOY_ID=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+          fi
+          
           echo "deploy_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
           
           echo "✅ Render deployment triggered successfully"
           echo "📦 Deployment ID: $DEPLOY_ID"
           
-          if [ -n "$RENDER_APP_URL" ]; then
-            echo "🌐 App URL: $RENDER_APP_URL"
-            echo "app_url=$RENDER_APP_URL" >> $GITHUB_OUTPUT
+          if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SERVICE_ID" ]; then
+            echo "use_api=true" >> $GITHUB_OUTPUT
+          else
+            echo "use_api=false" >> $GITHUB_OUTPUT
+            echo "⚠️ RENDER_API_KEY or RENDER_SERVICE_ID not set - will use health check fallback"
           fi
       
-      - name: Wait for deployment
-        if: steps.deploy.outputs.deploy_id != ''
+      - name: Wait for deployment (Render API)
+        if: steps.deploy.outputs.deploy_id != '' && steps.deploy.outputs.use_api == 'true'
         env:
-          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          DEPLOY_ID: ${{ steps.deploy.outputs.deploy_id }}
         run: |
-          if [ -z "$RENDER_APP_URL" ]; then
-            echo "⚠️ RENDER_APP_URL not set!"
-            echo "❌ Cannot verify deployment without app URL."
-            echo "Add RENDER_APP_URL secret to your repository: Settings → Secrets → Actions"
-            exit 1
-          fi
-          
-          echo "⏳ Waiting for Render deployment to complete..."
-          echo "📦 Deployment ID: ${{ steps.deploy.outputs.deploy_id }}"
-          echo "🌐 Target URL: $RENDER_APP_URL"
+          echo "⏳ Polling Render API for deployment status..."
+          echo "📦 Deployment ID: $DEPLOY_ID"
+          echo "🔧 Service ID: $RENDER_SERVICE_ID"
           echo ""
           echo "⚠️  Note: Render deployments can take 5-10 minutes for Docker builds"
           echo ""
           
-          MAX_ATTEMPTS=60
+          MAX_ATTEMPTS=80
           ATTEMPT=0
-          WAIT_TIME=10
+          WAIT_TIME=15
           
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             sleep $WAIT_TIME
             ATTEMPT=$((ATTEMPT + 1))
             ELAPSED=$((ATTEMPT * WAIT_TIME))
-            echo "🔍 [$ELAPSED s] Checking deployment status (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
+            
+            echo "🔍 [$ELAPSED s] Polling deployment status (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
+            
+            STATUS_RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$DEPLOY_ID")
+            
+            STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status // "unknown"')
+            
+            echo "   Status: $STATUS"
+            
+            if [ "$STATUS" = "live" ]; then
+              echo ""
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "✅ Deployment successful! Status: LIVE"
+              echo "📦 Deployment ID: $DEPLOY_ID"
+              echo "⏱️  Total deployment time: $ELAPSED seconds"
+              echo ""
+              echo "🎯 Your service is now live on Render!"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              exit 0
+            elif [ "$STATUS" = "build_failed" ] || [ "$STATUS" = "update_failed" ] || [ "$STATUS" = "deactivated" ]; then
+              echo ""
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "❌ Deployment failed with status: $STATUS"
+              echo "📦 Deployment ID: $DEPLOY_ID"
+              echo ""
+              echo "Response details:"
+              echo "$STATUS_RESPONSE" | jq '.'
+              echo ""
+              echo "Next steps:"
+              echo "  1. Check Render dashboard: https://dashboard.render.com/"
+              echo "  2. View deployment logs for error details"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              exit 1
+            fi
+          done
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ Deployment verification timeout!"
+          echo "⏱️  Timeout after $((MAX_ATTEMPTS * WAIT_TIME)) seconds (20 minutes)"
+          echo "📦 Last known status: $STATUS"
+          echo ""
+          echo "The deployment may still be in progress. Check:"
+          echo "  • Render dashboard: https://dashboard.render.com/"
+          echo "  • Service logs for more details"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          exit 1
+      
+      - name: Wait for deployment (Health Check Fallback)
+        if: steps.deploy.outputs.deploy_id != '' && steps.deploy.outputs.use_api == 'false'
+        env:
+          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+        run: |
+          if [ -z "$RENDER_APP_URL" ]; then
+            echo "⚠️ RENDER_APP_URL not set!"
+            echo "❌ Cannot verify deployment without API key or app URL."
+            echo ""
+            echo "Please add one of the following to your repository secrets:"
+            echo "  Option 1 (Recommended): RENDER_API_KEY + RENDER_SERVICE_ID"
+            echo "  Option 2 (Fallback): RENDER_APP_URL"
+            exit 1
+          fi
+          
+          echo "⏳ Using health check fallback method..."
+          echo "📦 Deployment ID: ${{ steps.deploy.outputs.deploy_id }}"
+          echo "🌐 Target URL: $RENDER_APP_URL"
+          echo ""
+          echo "⚠️  WARNING: This method may report success prematurely!"
+          echo "⚠️  It checks if ANY version responds, not specifically the new deployment."
+          echo "⚠️  For accurate status, add RENDER_API_KEY and RENDER_SERVICE_ID secrets."
+          echo ""
+          
+          MAX_ATTEMPTS=80
+          ATTEMPT=0
+          WAIT_TIME=15
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            sleep $WAIT_TIME
+            ATTEMPT=$((ATTEMPT + 1))
+            ELAPSED=$((ATTEMPT * WAIT_TIME))
+            echo "🔍 [$ELAPSED s] Checking health endpoint (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
             
             if curl -f -s --max-time 10 "$RENDER_APP_URL/health" > /dev/null 2>&1; then
               echo ""
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              echo "✅ Deployment successful! App is responding."
-              echo "🌐 Your app is live at: $RENDER_APP_URL"
-              echo "⏱️  Total deployment time: $ELAPSED seconds"
+              echo "✅ Health check passed! App is responding."
+              echo "🌐 App URL: $RENDER_APP_URL"
+              echo "⏱️  Elapsed time: $ELAPSED seconds"
+              echo ""
+              echo "⚠️  Note: This confirms the app responds, but may not be the new version yet."
+              echo "   Check Render dashboard to confirm deployment completion."
               echo ""
               echo "🎯 Test your endpoints:"
               echo "   • Health check: $RENDER_APP_URL/health"
-              echo "   • App info: $RENDER_APP_URL/"
               echo "   • Leave requests: $RENDER_APP_URL/leave-requests"
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               exit 0
@@ -131,14 +219,9 @@ jobs:
           
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "❌ Deployment verification failed!"
+          echo "❌ Health check timeout!"
           echo "⏱️  Timeout after $((MAX_ATTEMPTS * WAIT_TIME)) seconds"
           echo "🌐 App URL: $RENDER_APP_URL"
-          echo ""
-          echo "Possible reasons:"
-          echo "  • Render deployment is taking longer than expected"
-          echo "  • Application failed to start (check Render logs)"
-          echo "  • Health endpoint is not responding"
           echo ""
           echo "Next steps:"
           echo "  1. Check Render dashboard: https://dashboard.render.com/"
