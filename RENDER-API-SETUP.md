@@ -45,8 +45,8 @@ The Render API method ensures the CD pipeline waits for the **new deployment** t
 
    | Secret Name | Value | Example |
    |-------------|-------|---------|
-   | `RENDER_API_KEY` | Your Render API key | `rnd_abcd1234...` |
-   | `RENDER_SERVICE_ID` | Your service ID | `srv-abcd1234...` |
+   | `RENDER_API_KEY` | Your Render API key | `rnd_t7e4j49rpPGpmfrfqnEUJLAfeeCV` |
+   | `RENDER_SERVICE_ID` | Your service ID | `srv-d67gl6mmcj7s739d78o0` |
 
 ### Step 4: Verify Existing Secrets
 

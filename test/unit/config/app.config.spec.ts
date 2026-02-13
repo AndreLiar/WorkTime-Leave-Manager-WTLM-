@@ -16,7 +16,7 @@ describe('App configuration', () => {
     delete process.env.API_PREFIX;
 
     jest.isolateModules(() => {
-      const { config } = require('./app.config');
+      const { config } = require('../../../src/config/app.config');
       expect(config.port).toBe(3000);
       expect(config.nodeEnv).toBe('development');
       expect(config.apiPrefix).toBe('');
@@ -29,7 +29,7 @@ describe('App configuration', () => {
     process.env.API_PREFIX = '/api';
 
     jest.isolateModules(() => {
-      const { config } = require('./app.config');
+      const { config } = require('../../../src/config/app.config');
       expect(config.port).toBe('4000');
       expect(config.nodeEnv).toBe('production');
       expect(config.apiPrefix).toBe('/api');
