@@ -14,6 +14,8 @@
     "test:unit": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:integration": "npm run build && npm run start:integration",
+    "start:integration": "node dist/main & sleep 5 && newman run test/postman/leave-request-api.postman_collection.json && kill $!",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -37,12 +39,14 @@
     "@nestjs/common": "^11.1.13",
     "@nestjs/core": "^11.1.13",
     "@nestjs/platform-express": "^11.1.13",
+    "better-sqlite3": "^12.6.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.16",
     "@nestjs/testing": "^11.1.13",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.2.3",
@@ -54,6 +58,7 @@
     "husky": "^9.1.7",
     "jest": "^30.2.0",
     "lint-staged": "^16.2.7",
+    "newman": "^6.2.2",
     "prettier": "^3.8.1",
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.4",

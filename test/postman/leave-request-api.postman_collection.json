@@ -1,0 +1,435 @@
+{
+  "info": {
+    "name": "WorkTime Leave Manager API",
+    "description": "Integration tests for Leave Request API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "leaveRequestId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has status', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('status');",
+              "    pm.expect(jsonData.status).to.eql('ok');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Get App Info",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has required fields', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('message');",
+              "    pm.expect(jsonData).to.have.property('version');",
+              "    pm.expect(jsonData).to.have.property('endpoints');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        }
+      }
+    },
+    {
+      "name": "Create Leave Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Leave request created', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('id');",
+              "    pm.expect(jsonData.id).to.match(/^LR\\d{6}$/);",
+              "    pm.expect(jsonData.employeeId).to.eql('EMP001');",
+              "    pm.expect(jsonData.status).to.eql('pending');",
+              "    pm.expect(jsonData.leaveType).to.eql('vacation');",
+              "    ",
+              "    pm.collectionVariables.set('leaveRequestId', jsonData.id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employeeId\": \"EMP001\",\n  \"leaveType\": \"vacation\",\n  \"startDate\": \"2026-03-01T00:00:00Z\",\n  \"endDate\": \"2026-03-07T00:00:00Z\",\n  \"reason\": \"Family vacation\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests"]
+        }
+      }
+    },
+    {
+      "name": "Get All Leave Requests",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response is an array', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "    pm.expect(jsonData.length).to.be.greaterThan(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests"]
+        }
+      }
+    },
+    {
+      "name": "Get Leave Request By ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Correct leave request returned', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.id).to.eql(pm.collectionVariables.get('leaveRequestId'));",
+              "    pm.expect(jsonData.employeeId).to.eql('EMP001');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests/{{leaveRequestId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests", "{{leaveRequestId}}"]
+        }
+      }
+    },
+    {
+      "name": "Get Requests By Employee",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('All requests are for EMP001', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "    jsonData.forEach(function(request) {",
+              "        pm.expect(request.employeeId).to.eql('EMP001');",
+              "    });",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests?employeeId=EMP001",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests"],
+          "query": [
+            {
+              "key": "employeeId",
+              "value": "EMP001"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Statistics",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Statistics have all fields', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('total');",
+              "    pm.expect(jsonData).to.have.property('pending');",
+              "    pm.expect(jsonData).to.have.property('approved');",
+              "    pm.expect(jsonData).to.have.property('rejected');",
+              "    pm.expect(jsonData).to.have.property('totalDaysRequested');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests/statistics",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests", "statistics"]
+        }
+      }
+    },
+    {
+      "name": "Approve Leave Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Leave request is approved', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('approved');",
+              "    pm.expect(jsonData.id).to.eql(pm.collectionVariables.get('leaveRequestId'));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests/{{leaveRequestId}}/approve",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests", "{{leaveRequestId}}", "approve"]
+        }
+      }
+    },
+    {
+      "name": "Create Second Leave Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Second leave request created', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('id');",
+              "    pm.expect(jsonData.employeeId).to.eql('EMP002');",
+              "    pm.collectionVariables.set('secondLeaveRequestId', jsonData.id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employeeId\": \"EMP002\",\n  \"leaveType\": \"sick\",\n  \"startDate\": \"2026-03-10T00:00:00Z\",\n  \"endDate\": \"2026-03-12T00:00:00Z\",\n  \"reason\": \"Medical appointment\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests"]
+        }
+      }
+    },
+    {
+      "name": "Reject Leave Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Leave request is rejected', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('rejected');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests/{{secondLeaveRequestId}}/reject",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests", "{{secondLeaveRequestId}}", "reject"]
+        }
+      }
+    },
+    {
+      "name": "Delete Leave Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Deletion confirmed', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.include('deleted');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests/{{secondLeaveRequestId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests", "{{secondLeaveRequestId}}"]
+        }
+      }
+    },
+    {
+      "name": "Validation - Past Date",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Error message mentions past', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.include('past');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employeeId\": \"EMP003\",\n  \"leaveType\": \"vacation\",\n  \"startDate\": \"2020-01-01T00:00:00Z\",\n  \"endDate\": \"2020-01-05T00:00:00Z\",\n  \"reason\": \"Past date test\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/leave-requests",
+          "host": ["{{baseUrl}}"],
+          "path": ["leave-requests"]
+        }
+      }
+    }
+  ]
+}
