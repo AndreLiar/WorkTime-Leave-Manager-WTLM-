@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { LeaveRequestService } from './leave-request.service';
-import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
+import { LeaveRequestService } from '../../../../src/modules/leave-request/leave-request.service';
+import { CreateLeaveRequestDto } from '../../../../src/modules/leave-request/dto/create-leave-request.dto';
 
 describe('LeaveRequestService', () => {
   let service: LeaveRequestService;

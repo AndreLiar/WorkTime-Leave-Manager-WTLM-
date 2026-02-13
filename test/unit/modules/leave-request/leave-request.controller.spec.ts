@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { LeaveRequestController } from './leave-request.controller';
-import { LeaveRequestService } from './leave-request.service';
+import { LeaveRequestController } from '../../../../src/modules/leave-request/leave-request.controller';
+import { LeaveRequestService } from '../../../../src/modules/leave-request/leave-request.service';
 
 describe('LeaveRequestController', () => {
   let controller: LeaveRequestController;

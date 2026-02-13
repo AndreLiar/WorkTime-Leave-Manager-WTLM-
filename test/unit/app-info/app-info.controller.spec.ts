@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppInfoController } from './app-info.controller';
-import { AppInfoService } from './app-info.service';
+import { AppInfoController } from '../../../src/app-info/app-info.controller';
+import { AppInfoService } from '../../../src/app-info/app-info.service';
 
 describe('AppInfoController', () => {
   let appInfoController: AppInfoController;
