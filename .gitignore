@@ -5,3 +5,8 @@ coverage/
 *.log
 .DS_Store
 .eslintcache
+
+# Database
+data/
+*.db
+*.db-journal

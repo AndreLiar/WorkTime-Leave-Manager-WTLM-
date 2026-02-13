@@ -37,3 +37,11 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+      - name: Run integration tests
+        run: |
+          npm run start:prod &
+          SERVER_PID=$!
+          sleep 5
+          newman run test/postman/leave-request-api.postman_collection.json --reporters cli,json --reporter-json-export test-results.json
+          kill $SERVER_PID || true
