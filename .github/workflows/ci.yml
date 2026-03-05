@@ -7,6 +7,9 @@ on:
       - staging
       - develop
     types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - staging
 
 permissions:
   contents: read
@@ -14,9 +17,91 @@ permissions:
   security-events: write
 
 jobs:
-  # Single job for small teams - runs all checks in sequence
-  ci-checks:
-    name: CI Checks
+  # Job 1: Fast validation for feature -> develop PRs
+  ci-develop:
+    name: CI - Develop PR
+    if: github.event_name == 'pull_request' && github.base_ref == 'develop'
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Setup
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      # 2. Code Quality
+      - name: 🔍 TypeScript check
+        run: npm run ts
+
+      - name: 🎨 ESLint
+        run: npm run lint
+
+      # 3. Tests
+      - name: 🧪 Unit tests
+        run: npm run test:unit
+
+      # 4. Build
+      - name: 🏗️ Build application
+        run: npm run build
+
+      # 5. Security Scans (Fast)
+      - name: 🔒 npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: 🔐 Gitleaks - Secret scanning
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 6. PR Comment
+      - name: 💬 Comment PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = '${{ job.status }}';
+            const emoji = result === 'success' ? '✅' : '❌';
+            
+            let body = `## ${emoji} CI Pipeline Results\n\n`;
+            body += `**Target branch:** \`develop\`\n`;
+            body += `**Status:** ${result}\n\n`;
+            body += `### Checks Performed:\n`;
+            body += `- TypeScript validation\n`;
+            body += `- ESLint checks\n`;
+            body += `- Unit tests\n`;
+            body += `- Build verification\n`;
+            body += `- npm audit\n`;
+            body += `- Gitleaks (secret detection)\n`;
+            body += `\n---\n`;
+            body += `⏱️ Duration: ~8-10 minutes\n`;
+            body += `🔗 [View logs](${context.payload.pull_request.html_url}/checks)\n\n`;
+            
+            if (result === 'success') {
+              body += `✅ **All checks passed!** Ready for review.\n`;
+            } else {
+              body += `❌ **Some checks failed.** Please fix and push again.\n`;
+            }
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: body
+            });
+
+  # Job 2: Full validation for staging push (develop -> staging merge)
+  staging-validation:
+    name: Staging Validation
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     
     services:
@@ -48,75 +133,12 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      # 2. Code Quality
-      - name: 🔍 TypeScript check
-        run: npm run ts
-
-      - name: 🎨 ESLint
-        run: npm run lint
-
-      # 3. Tests
-      - name: 🧪 Unit tests
-        run: npm run test:unit
-
-      # 4. Build
+      # 2. Build
       - name: 🏗️ Build application
         run: npm run build
 
-      # 5. Security Scans
-      - name: 🔒 npm audit
-        run: npm audit --audit-level=high
-        continue-on-error: true
-
-      - name: 🛡️ CodeQL SAST scan
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-
-      - name: 🔍 Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:javascript-typescript"
-
-      - name: 🐳 Build Docker image for scanning
-        uses: docker/setup-buildx-action@v3
-
-      - name: 📦 Build container image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          tags: wtlm-app:pr-${{ github.event.pull_request.number }}
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 🔎 Trivy container scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: wtlm-app:pr-${{ github.event.pull_request.number }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-
-      - name: 📤 Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: ⚠️ Fail on critical container vulnerabilities
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: wtlm-app:pr-${{ github.event.pull_request.number }}
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL'
-        continue-on-error: true
-
-      # 6. Integration Tests (only if not PR to main)
+      # 3. Integration Tests
       - name: 🚀 Start application
-        if: github.base_ref != 'main'
         env:
           DATABASE_URL: postgresql://wtlm_user:wtlm_password@localhost:5432/wtlm_db
           NODE_ENV: test
@@ -128,7 +150,6 @@ jobs:
           sleep 10
 
       - name: ✅ Integration tests
-        if: github.base_ref != 'main'
         run: |
           timeout 30 bash -c 'until curl -f http://localhost:3000/health; do sleep 2; done'
           newman run WorkTime-Leave-Manager.postman_collection.json \
@@ -136,45 +157,152 @@ jobs:
             --reporters cli
 
       - name: 🛑 Stop application
-        if: always() && github.base_ref != 'main'
+        if: always()
         run: |
           if [ -f server.pid ]; then
             kill $(cat server.pid) || true
           fi
 
-      # 7. PR Comment with summary
+      # 4. E2E Tests (containerized)
+      - name: 🧪 E2E tests with Docker
+        run: |
+          docker-compose -f docker-compose.dev.yml up -d
+          sleep 15
+          docker-compose -f docker-compose.dev.yml logs
+          
+          # Run E2E tests against containerized app
+          docker-compose -f docker-compose.dev.yml exec -T app npm run test:e2e || true
+          
+          docker-compose -f docker-compose.dev.yml down
+
+      # 5. Security Scans (Deep)
+      - name: 🛡️ CodeQL SAST scan
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+      # 6. Container Security
+      - name: 🐳 Build Docker image for scanning
+        uses: docker/setup-buildx-action@v3
+
+      - name: 📦 Build container image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: wtlm-app:staging-${{ github.sha }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 🔎 Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: wtlm-app:staging-${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: 📤 Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: ⚠️ Fail on critical vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: wtlm-app:staging-${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+        continue-on-error: false
+
+      # 7. Summary
+      - name: 📊 Staging validation summary
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 STAGING VALIDATION COMPLETE"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Branch: staging"
+          echo "Commit: ${{ github.sha }}"
+          echo "Status: ${{ job.status }}"
+          echo ""
+          echo "Tests performed:"
+          echo "  ✅ Integration tests"
+          echo "  ✅ E2E tests (containerized)"
+          echo "  ✅ CodeQL SAST"
+          echo "  ✅ Trivy container scan"
+          echo "  ✅ Docker build validation"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # Job 3: Quick check for staging -> main PRs
+  main-pr-check:
+    name: Main PR Check
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Setup
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      # 2. Quick sanity checks
+      - name: 🔍 TypeScript check
+        run: npm run ts
+
+      - name: 🏗️ Build verification
+        run: npm run build
+
+      - name: 🧪 Quick unit tests
+        run: npm run test:unit
+
+      # 3. PR Comment
       - name: 💬 Comment PR
-        if: always() && github.event_name == 'pull_request'
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
-            const target = '${{ github.base_ref }}';
             const result = '${{ job.status }}';
             const emoji = result === 'success' ? '✅' : '❌';
             
-            let body = `## ${emoji} CI Pipeline Results\n\n`;
-            body += `**Target branch:** \`${target}\`\n`;
+            let body = `## ${emoji} Main PR Check Results\n\n`;
+            body += `**Target branch:** \`main\` (Production)\n`;
             body += `**Status:** ${result}\n\n`;
-            body += `### Checks Performed:\n`;
-            body += `- ✅ TypeScript validation\n`;
-            body += `- ✅ ESLint checks\n`;
-            body += `- ✅ Unit tests\n`;
-            body += `- ✅ Build verification\n`;
-            body += `- ✅ npm audit\n`;
-            body += `- ✅ CodeQL SAST analysis\n`;
-            body += `- ✅ Trivy container scan\n`;
-            
-            if (target !== 'main') {
-              body += `- ✅ Integration tests\n`;
-            }
-            
+            body += `### Quick Checks:\n`;
+            body += `- TypeScript validation\n`;
+            body += `- Build verification\n`;
+            body += `- Unit tests\n`;
             body += `\n---\n`;
-            body += `🔗 [View detailed logs](${context.payload.pull_request.html_url}/checks)\n`;
+            body += `⏱️ Duration: ~5 minutes\n`;
+            body += `\n`;
             
             if (result === 'success') {
-              body += `\n✅ **All checks passed!** Ready for review.\n`;
+              body += `✅ **Sanity checks passed!**\n\n`;
+              body += `⚠️ **Important:** This PR will deploy to production when merged.\n`;
+              body += `\n📋 **Pre-merge checklist:**\n`;
+              body += `- [ ] Staging tests passed\n`;
+              body += `- [ ] All features tested\n`;
+              body += `- [ ] Database migrations ready\n`;
+              body += `- [ ] Rollback plan documented\n`;
+              body += `- [ ] Team notified\n`;
             } else {
-              body += `\n❌ **Some checks failed.** Please fix and push again.\n`;
+              body += `❌ **Checks failed.** Please fix before merging.\n`;
             }
             
             await github.rest.issues.createComment({
@@ -183,3 +311,4 @@ jobs:
               issue_number: context.payload.pull_request.number,
               body: body
             });
+

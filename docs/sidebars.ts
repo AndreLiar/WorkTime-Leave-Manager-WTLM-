@@ -13,6 +13,15 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'CI/CD Pipeline',
+      items: [
+        'cicd/overview',
+        'cicd/branch-strategy',
+        'cicd/developer-workflow',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Architecture',
       items: [
         'architecture/overview',
