@@ -4,13 +4,53 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - rollback
+          - list-versions
+        default: deploy
+      version:
+        description: 'Version to rollback to (only for rollback action)'
+        required: false
+        type: string
+      reason:
+        description: 'Reason for rollback (only for rollback action)'
+        required: false
+        type: string
+        default: 'Manual rollback requested'
 
 permissions:
   contents: write
   packages: write
 
 jobs:
+  # Determine which action to run
+  determine-action:
+    runs-on: ubuntu-latest
+    outputs:
+      action: ${{ steps.set-action.outputs.action }}
+    steps:
+      - id: set-action
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "action=deploy" >> $GITHUB_OUTPUT
+            echo "🚀 Triggered by push - running deployment"
+          else
+            echo "action=${{ inputs.action }}" >> $GITHUB_OUTPUT
+            echo "🔧 Manual trigger - running: ${{ inputs.action }}"
+          fi
+
+  # Job 1: Deploy (automatic on push or manual)
+  # Job 1: Deploy (automatic on push or manual)
   deploy:
+    needs: determine-action
+    if: needs.determine-action.outputs.action == 'deploy'
     runs-on: ubuntu-latest
 
     steps:
@@ -297,4 +337,180 @@ jobs:
           echo "✅ All smoke tests passed!"
           echo "🎯 Deployment version: ${{ steps.version.outputs.version }}"
           echo "🌐 Application URL: $APP_URL"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # Job 2: Rollback (manual only)
+  rollback:
+    needs: determine-action
+    if: needs.determine-action.outputs.action == 'rollback'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version
+        id: validate
+        run: |
+          VERSION="${{ inputs.version }}"
+          echo "🔍 Validating version/commit: $VERSION"
+          
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            COMMIT_SHA=$(git rev-parse "$VERSION")
+            echo "✅ Found tag/commit: $VERSION"
+            echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+            echo "version_tag=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Version/commit not found: $VERSION"
+            echo ""
+            echo "Available recent tags:"
+            git tag --sort=-creatordate | head -10
+            exit 1
+          fi
+
+      - name: Checkout target version
+        run: |
+          git checkout ${{ steps.validate.outputs.commit_sha }}
+          echo "✅ Checked out commit: ${{ steps.validate.outputs.commit_sha }}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image name
+        id: prep
+        run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | sed 's/-$//')
+          echo "image_name=ghcr.io/${REPO_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Check if Docker image exists
+        id: check_image
+        run: |
+          VERSION="${{ inputs.version }}"
+          IMAGE="${{ steps.prep.outputs.image_name }}"
+          
+          echo "🔍 Checking if Docker image exists for version: $VERSION"
+          
+          if docker pull "$IMAGE:$VERSION" 2>/dev/null; then
+            echo "✅ Docker image found: $IMAGE:$VERSION"
+            echo "image_exists=true" >> $GITHUB_OUTPUT
+            echo "use_existing=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Docker image not found for version: $VERSION"
+            echo "🔨 Will rebuild from source code"
+            echo "image_exists=false" >> $GITHUB_OUTPUT
+            echo "use_existing=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push Docker image (if needed)
+        if: steps.check_image.outputs.use_existing == 'false'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.prep.outputs.image_name }}:${{ inputs.version }}
+            ${{ steps.prep.outputs.image_name }}:rollback-${{ inputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy rollback to Render
+        id: deploy
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "❌ RENDER_DEPLOY_HOOK is not set"
+            exit 1
+          fi
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔄 ROLLBACK DEPLOYMENT"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Version: ${{ inputs.version }}"
+          echo "📝 Reason: ${{ inputs.reason }}"
+          echo "👤 Triggered by: ${{ github.actor }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          
+          echo "🚀 Triggering Render deployment..."
+          RESPONSE=$(curl -f -s -X POST "$RENDER_DEPLOY_HOOK")
+          echo "$RESPONSE"
+          
+          DEPLOY_ID=$(echo "$RESPONSE" | jq -r '.deploy.id // empty')
+          echo "deploy_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
+          echo "✅ Rollback deployment triggered"
+
+      - name: Rollback summary
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 ROLLBACK SUMMARY"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Version: ${{ inputs.version }}"
+          echo "Commit: ${{ steps.validate.outputs.commit_sha }}"
+          echo "Reason: ${{ inputs.reason }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # Job 3: List Versions (manual only)
+  list-versions:
+    needs: determine-action
+    if: needs.determine-action.outputs.action == 'list-versions'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: List recent versions
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 AVAILABLE VERSIONS FOR ROLLBACK"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Recent version tags (last 20):"
+          echo ""
+          
+          git tag --sort=-creatordate | head -20 | while read tag; do
+            COMMIT=$(git rev-parse "$tag")
+            DATE=$(git log -1 --format=%ai "$tag" | cut -d' ' -f1,2)
+            MESSAGE=$(git log -1 --format=%s "$tag")
+            echo "📦 $tag"
+            echo "   Commit: $COMMIT"
+            echo "   Date: $DATE"
+            echo "   Message: $MESSAGE"
+            echo ""
+          done
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "To rollback to a specific version:"
+          echo "  1. Go to Actions → CD Pipeline"
+          echo "  2. Click 'Run workflow'"
+          echo "  3. Select 'rollback' action"
+          echo "  4. Enter the version tag"
+          echo "  5. Provide a reason"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: List recent commits
+        run: |
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📝 RECENT COMMITS (last 10)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          git log --oneline --decorate -10
+          echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

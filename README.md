@@ -172,12 +172,29 @@ Le projet utilise deux branches principales :
 **Philosophy:** Comprehensive security without compromising speed.
 
 #### CD Pipeline (Production Deployment)
-La pipeline CD se déclenche automatiquement sur push vers `main` :
-1. ✅ **Automatic Semantic Versioning** - Creates version tag (YYYY.MM.DD-SHA)
-2. ✅ **Docker Build & Push** - Tagged with version to GHCR
-3. ✅ **Deployment to Render** - Monitored via API
-4. ✅ **Smoke Tests** - Automatic endpoint validation
-5. ✅ **Rollback Ready** - Can revert to any previous version
+**Combined workflow** - Handles deployment, rollback, and version management:
+
+**Automatic trigger:** Push to `main`
+**Manual triggers:** workflow_dispatch with 3 actions
+
+**Actions available:**
+1. ✅ **deploy** - Normal deployment (default)
+   - Semantic versioning
+   - Docker build & push
+   - Deployment to Render
+   - Smoke tests
+
+2. ✅ **rollback** - Revert to previous version
+   - Select version to rollback to
+   - Provide reason
+   - One-click recovery
+
+3. ✅ **list-versions** - View available versions
+   - Lists last 20 version tags
+   - Shows commits and dates
+   - Helper for rollback
+
+**Duration:** ~10-15 minutes
 
 **See [Deployment Versioning Guide](./docs/DEPLOYMENT_VERSIONING.md) for rollback procedures.**
 
@@ -203,9 +220,7 @@ La pipeline CD se déclenche automatiquement sur push vers `main` :
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                   # Combined CI for all PRs
-│       ├── cd.yml                   # CD with versioning
-│       ├── rollback.yml             # Rollback workflow
-│       └── list-versions.yml        # Version listing
+│       └── cd.yml                   # Combined CD (deploy/rollback/versions)
 ├── docs/
 │   └── DEPLOYMENT_VERSIONING.md     # Versioning & rollback guide
 ├── prisma/

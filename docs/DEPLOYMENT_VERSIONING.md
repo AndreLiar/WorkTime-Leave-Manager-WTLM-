@@ -24,7 +24,7 @@ Example: `2026.03.05-abc1234`
 git tag --sort=-creatordate | head -20
 
 # Or use GitHub Actions workflow
-Go to: Actions → List Available Versions → Run workflow
+Go to: Actions → CD Pipeline → Run workflow → Select "list-versions"
 ```
 
 ---
@@ -33,23 +33,24 @@ Go to: Actions → List Available Versions → Run workflow
 
 ### Method 1: GitHub Actions (Recommended)
 
-#### Using the Rollback Workflow:
+#### Using the CD Pipeline Rollback Action:
 
 1. **Navigate to Actions Tab**
    - Go to your repository
    - Click on "Actions" tab
-   - Select "Rollback Deployment" workflow
+   - Select "CD Pipeline" workflow
 
 2. **Trigger Rollback**
    - Click "Run workflow" dropdown
+   - Select **"rollback"** from action dropdown
    - Enter the version to rollback to (e.g., `2026.03.05-abc1234`)
    - Provide a reason for the rollback
    - Click "Run workflow"
 
 3. **Monitor Progress**
    - Watch the workflow execution
-   - Smoke tests will run automatically
-   - Receive status notification
+   - Check rollback summary in logs
+   - Verify deployment status
 
 #### What Happens During Rollback:
 ```
@@ -278,12 +279,20 @@ If automated rollback fails:
 
 ### List Versions
 ```bash
-gh workflow run list-versions.yml
+# Via GitHub Actions
+Actions → CD Pipeline → Run workflow → Select "list-versions"
+
+# Via git
+git tag --sort=-creatordate | head -20
 ```
 
 ### Trigger Rollback
 ```bash
-gh workflow run rollback.yml -f version=2026.03.05-abc1234 -f reason="Production bug"
+# Via GitHub Actions
+Actions → CD Pipeline → Run workflow
+  Action: rollback
+  Version: 2026.03.05-abc1234
+  Reason: "Production bug"
 ```
 
 ### Check Current Version
