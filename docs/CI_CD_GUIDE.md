@@ -34,9 +34,8 @@ This CI/CD setup is **comprehensive with security-first approach**:
 3. Build (1 min)
    └─ TypeScript compilation
 
-4. Security Scans (5-7 min)
+4. Security Scans (4-5 min)
    ├─ npm audit (dependency vulnerabilities)
-   ├─ Snyk scan (advanced dependency analysis)  
    ├─ CodeQL SAST (SQL injection, XSS, etc.)
    ├─ Build Docker image
    └─ Trivy container scan (OS/library CVEs)
@@ -149,7 +148,6 @@ feature/add-notifications → dev
 - ✅ Tests pass
 - ✅ Build succeeds
 - ✅ npm audit (dependency vulnerabilities)
-- ✅ Snyk scan (advanced dependency check)
 - ✅ CodeQL SAST (code security analysis)
 - ✅ Trivy scan (container vulnerabilities)
 
@@ -216,7 +214,6 @@ After CI runs, you'll see:
 - ✅ Unit tests
 - ✅ Build verification
 - ✅ npm audit
-- ✅ Snyk security scan
 - ✅ CodeQL SAST analysis
 - ✅ Trivy container scan
 - ✅ Integration tests
@@ -396,12 +393,6 @@ Your CI pipeline now includes **comprehensive security scanning**:
 - Checks for known CVEs in dependencies
 - Fails on HIGH/CRITICAL severity
 
-**Snyk (optional but recommended):**
-- More comprehensive than npm audit
-- Better vulnerability database
-- Provides fix suggestions
-- **Setup:** Add `SNYK_TOKEN` secret to GitHub
-
 ### **2. Static Application Security Testing (SAST)**
 
 **CodeQL:**
@@ -431,19 +422,6 @@ All security findings are uploaded to:
 ```
 GitHub → Security → Code scanning alerts
 ```
-
----
-
-## 🔐 Optional Secrets
-
-For enhanced security features:
-
-```bash
-SNYK_TOKEN              # For Snyk security scanning
-                        # Get from: https://snyk.io/account
-```
-
-**Without SNYK_TOKEN:** Pipeline will skip Snyk scan (npm audit still runs)
 
 ---
 

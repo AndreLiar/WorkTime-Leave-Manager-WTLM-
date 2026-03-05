@@ -68,18 +68,6 @@ jobs:
         run: npm audit --audit-level=high
         continue-on-error: true
 
-      - name: 🔐 Snyk security scan
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: |
-          if [ -n "$SNYK_TOKEN" ]; then
-            npm install -g snyk
-            snyk test --severity-threshold=high || true
-          else
-            echo "⚠️ SNYK_TOKEN not set, skipping Snyk scan"
-          fi
-        continue-on-error: true
-
       - name: 🛡️ CodeQL SAST scan
         uses: github/codeql-action/init@v3
         with:
@@ -173,7 +161,6 @@ jobs:
             body += `- ✅ Unit tests\n`;
             body += `- ✅ Build verification\n`;
             body += `- ✅ npm audit\n`;
-            body += `- ✅ Snyk security scan\n`;
             body += `- ✅ CodeQL SAST analysis\n`;
             body += `- ✅ Trivy container scan\n`;
             

@@ -162,7 +162,6 @@ Le projet utilise deux branches principales :
 3. ✅ **Build** - Ensure it compiles
 4. ✅ **Security Scans**:
    - npm audit (dependency vulnerabilities)
-   - Snyk scan (advanced dependency analysis)
    - CodeQL SAST (code security analysis)
    - Trivy (container vulnerability scanning)
 5. ✅ **Integration Tests** - Full API testing (for dev branch PRs)
