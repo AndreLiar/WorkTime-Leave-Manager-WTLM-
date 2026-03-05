@@ -1,21 +1,43 @@
 # WorkTime Leave Manager API
 
-API minimale en Node.js avec NestJS pour gérer les temps de travail et les congés.
+API REST moderne en Node.js avec NestJS pour gérer les temps de travail et les congés des employés.
+
+## 📚 Documentation
+
+**📖 [Documentation Technique Complète (Docusaurus)](./docs/)**
+
+La documentation technique complète est disponible dans le dossier `docs/` :
+- Guide de démarrage rapide
+- Architecture du système
+- Référence API complète
+- Schéma de base de données
+- Guide de déploiement
+- **🔄 [Versioning & Rollback Guide](./docs/DEPLOYMENT_VERSIONING.md)** - New!
+
+Pour consulter la documentation :
+```bash
+cd docs
+npm install
+npm start
+```
 
 ## Fonctionnalités
 
 - API REST avec NestJS
+- PostgreSQL avec Prisma ORM
 - TypeScript configuré
 - ESLint pour le linting
 - Tests unitaires avec Jest
-- Docker pour la containerisation
+- Docker et Docker Compose pour la containerisation
 - CI/CD avec GitHub Actions
+- Documentation technique avec Docusaurus
 
 ## Prérequis
 
 - Node.js 18+
 - npm
-- Docker (optionnel)
+- Docker et Docker Compose
+- PostgreSQL (optionnel si vous utilisez Docker)
 
 ## Installation
 
@@ -26,6 +48,18 @@ cd WorkTime-Leave-Manager-WTLM-
 
 # Installer les dépendances
 npm install
+
+# Configurer les variables d'environnement
+cp .env.example .env
+
+# Démarrer PostgreSQL avec Docker Compose
+docker-compose -f docker-compose.dev.yml up -d
+
+# Générer le client Prisma
+npm run prisma:generate
+
+# Exécuter les migrations
+npm run prisma:migrate
 ```
 
 ## Démarrage
@@ -44,14 +78,22 @@ npm run build
 npm run start:prod
 ```
 
-### Avec Docker
+### Avec Docker Compose
 ```bash
-# Build l'image
-docker build -t wtlm-api .
+# Build et démarrer tous les services (PostgreSQL + App)
+docker-compose up --build
 
-# Run le container
-docker run -p 3000:3000 wtlm-api
+# Ou en mode détaché
+docker-compose up -d
+
+# Voir les logs
+docker-compose logs -f
+
+# Arrêter les services
+docker-compose down
 ```
+
+Voir [docs/DOCKER-COMPOSE.md](./docs/DOCKER-COMPOSE.md) pour plus de détails.
 
 ## Tests
 
@@ -107,13 +149,25 @@ Le projet utilise deux branches principales :
 - `develop` / `staging` : pour le développement
 - `main` : pour la production
 
-### CI Pipeline
+### CI/CD Pipeline
+
+#### CI Pipeline
 La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main` et vérifie :
 1. Installation des dépendances
 2. Vérification TypeScript
 3. Linting du code
 4. Tests unitaires
 5. Build de l'application
+
+#### CD Pipeline (with Versioning & Rollback)
+La pipeline CD se déclenche automatiquement sur push vers `main` :
+1. ✅ **Automatic Semantic Versioning** - Creates version tag (YYYY.MM.DD-SHA)
+2. ✅ **Docker Build & Push** - Tagged with version to GHCR
+3. ✅ **Deployment to Render** - Monitored via API
+4. ✅ **Smoke Tests** - Automatic endpoint validation
+5. ✅ **Rollback Ready** - Can revert to any previous version
+
+**See [Deployment Versioning Guide](./docs/DEPLOYMENT_VERSIONING.md) for rollback procedures.**
 
 ## Scripts npm
 
@@ -125,6 +179,10 @@ La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main`
 - `npm test` : Exécute les tests
 - `npm run test:watch` : Exécute les tests en mode watch
 - `npm run test:cov` : Exécute les tests avec couverture
+- `npm run prisma:generate` : Génère le client Prisma
+- `npm run prisma:migrate` : Crée et applique une migration
+- `npm run prisma:migrate:deploy` : Applique les migrations (production)
+- `npm run prisma:studio` : Ouvre Prisma Studio (interface GUI)
 
 ## Structure du projet
 
@@ -132,22 +190,29 @@ La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main`
 .
 ├── .github/
 │   └── workflows/
-│       └── ci.yml          # Pipeline CI/CD
+│       ├── ci.yml               # Pipeline CI
+│       ├── cd.yml               # Pipeline CD with versioning
+│       ├── rollback.yml         # Rollback workflow (NEW)
+│       └── list-versions.yml    # Version listing (NEW)
+├── docs/
+│   └── DEPLOYMENT_VERSIONING.md # Versioning & rollback guide (NEW)
+├── prisma/
+│   └── schema.prisma       # Schéma de base de données Prisma
 ├── src/
-│   ├── app.controller.ts   # Contrôleur principal
-│   ├── app.service.ts      # Service principal
+│   ├── database/
+│   │   ├── prisma.service.ts    # Service Prisma
+│   │   └── database.module.ts   # Module de base de données
+│   ├── modules/
+│   │   ├── health/              # Module health check
+│   │   └── leave-request/       # Module gestion des congés
 │   ├── app.module.ts       # Module principal
-│   ├── main.ts             # Point d'entrée
-│   ├── app.controller.spec.ts  # Tests controller
-│   └── app.service.spec.ts     # Tests service
+│   └── main.ts             # Point d'entrée
+├── test/                   # Tests E2E et intégration
+├── docker-compose.yml      # Configuration Docker Compose (production)
+├── docker-compose.dev.yml  # Configuration Docker Compose (développement)
 ├── Dockerfile              # Configuration Docker
-├── .dockerignore          # Fichiers ignorés par Docker
-├── .eslintrc.js           # Configuration ESLint
-├── .prettierrc            # Configuration Prettier
-├── jest.config.js         # Configuration Jest
-├── tsconfig.json          # Configuration TypeScript
-├── tsconfig.build.json    # Configuration build TypeScript
-└── package.json           # Dépendances et scripts
+├── .env.example            # Variables d'environnement exemple
+└── package.json            # Dépendances et scripts
 ```
 
 ## License

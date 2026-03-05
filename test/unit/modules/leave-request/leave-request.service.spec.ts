@@ -1,480 +1,240 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LeaveRequestService } from '../../../../src/modules/leave-request/leave-request.service';
+import { LeaveRequestRepository } from '../../../../src/modules/leave-request/leave-request.repository';
 import { CreateLeaveRequestDto } from '../../../../src/modules/leave-request/dto/create-leave-request.dto';
+import { LeaveRequest } from '../../../../src/modules/leave-request/leave-request.entity';
+
+const buildLeaveRequest = (data?: Partial<LeaveRequest>): LeaveRequest =>
+  new LeaveRequest({
+    id: data?.id ?? 'lr_1',
+    employeeId: data?.employeeId ?? 'EMP001',
+    leaveType: data?.leaveType ?? 'vacation',
+    startDate:
+      data?.startDate ?? new Date('2026-03-15T00:00:00.000Z'),
+    endDate: data?.endDate ?? new Date('2026-03-20T00:00:00.000Z'),
+    reason: data?.reason ?? 'Family vacation',
+    status: data?.status ?? 'pending',
+    createdAt: data?.createdAt ?? new Date('2026-03-01T00:00:00.000Z'),
+    updatedAt: data?.updatedAt ?? new Date('2026-03-01T00:00:00.000Z'),
+  });
 
 describe('LeaveRequestService', () => {
   let service: LeaveRequestService;
+  let repository: jest.Mocked<LeaveRequestRepository>;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [LeaveRequestService],
-    }).compile();
-
-    service = module.get<LeaveRequestService>(LeaveRequestService);
+  const validDto = (): CreateLeaveRequestDto => ({
+    employeeId: 'EMP001',
+    leaveType: 'vacation',
+    startDate: '2026-03-15T00:00:00.000Z',
+    endDate: '2026-03-20T00:00:00.000Z',
+    reason: 'Family vacation',
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  beforeEach(() => {
+    repository = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findById: jest.fn(),
+      findByEmployee: jest.fn(),
+      updateStatus: jest.fn(),
+      delete: jest.fn(),
+      findOverlapping: jest.fn(),
+      findMany: jest.fn(),
+    } as unknown as jest.Mocked<LeaveRequestRepository>;
+
+    service = new LeaveRequestService(repository);
   });
 
   describe('create', () => {
-    it('should create a leave request successfully', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+    it('persists a leave request when data is valid', async () => {
+      const request = buildLeaveRequest();
+      repository.findOverlapping.mockResolvedValue([]);
+      repository.create.mockResolvedValue(request);
 
-      const dto: CreateLeaveRequestDto = {
+      await expect(service.create(validDto())).resolves.toEqual(request);
+
+      expect(repository.create).toHaveBeenCalledWith({
         employeeId: 'EMP001',
         leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
+        startDate: new Date('2026-03-15T00:00:00.000Z'),
+        endDate: new Date('2026-03-20T00:00:00.000Z'),
         reason: 'Family vacation',
-      };
-
-      const result = service.create(dto);
-
-      expect(result).toBeDefined();
-      expect(result.id).toMatch(/^LR\d{6}$/);
-      expect(result.employeeId).toBe('EMP001');
-      expect(result.leaveType).toBe('vacation');
-      expect(result.status).toBe('pending');
-      expect(result.reason).toBe('Family vacation');
+        status: 'pending',
+      });
     });
 
-    it('should throw error if start date is after end date', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: yesterday.toISOString(),
-        reason: 'Test',
+    it('rejects invalid dates', async () => {
+      const dto = {
+        ...validDto(),
+        startDate: 'invalid',
+        endDate: 'invalid',
       };
 
-      expect(() => service.create(dto)).toThrow(BadRequestException);
-      expect(() => service.create(dto)).toThrow(
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(dto)).rejects.toThrow('Invalid date format');
+    });
+
+    it('rejects start dates after end dates', async () => {
+      const dto = {
+        ...validDto(),
+        startDate: '2026-03-22T00:00:00.000Z',
+        endDate: '2026-03-20T00:00:00.000Z',
+      };
+
+      await expect(service.create(dto)).rejects.toThrow(
         'Start date must be before end date',
       );
     });
 
-    it('should throw error if start date is in the past', () => {
+    it('rejects past start dates', async () => {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'sick',
+      const dto = {
+        ...validDto(),
         startDate: yesterday.toISOString(),
         endDate: tomorrow.toISOString(),
-        reason: 'Sick leave',
       };
 
-      expect(() => service.create(dto)).toThrow(BadRequestException);
-      expect(() => service.create(dto)).toThrow(
+      await expect(service.create(dto)).rejects.toThrow(
         'Cannot request leave in the past',
       );
     });
 
-    it('should throw error for invalid date format', () => {
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: 'invalid-date',
-        endDate: 'also-invalid',
-        reason: 'Test',
-      };
+    it('rejects overlapping requests', async () => {
+      repository.findOverlapping.mockResolvedValue([buildLeaveRequest()]);
 
-      expect(() => service.create(dto)).toThrow(BadRequestException);
-      expect(() => service.create(dto)).toThrow('Invalid date format');
-    });
-
-    it('should throw error if dates overlap with existing request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-
-      const dto1: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'First request',
-      };
-
-      const dto2: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'sick',
-        startDate: new Date(
-          tomorrow.getTime() + 2 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        endDate: new Date(
-          nextWeek.getTime() + 2 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        reason: 'Overlapping request',
-      };
-
-      service.create(dto1);
-      expect(() => service.create(dto2)).toThrow(BadRequestException);
-      expect(() => service.create(dto2)).toThrow(
+      await expect(service.create(validDto())).rejects.toThrow(
         'Leave request overlaps with existing request',
       );
-    });
-
-    it('should allow overlapping dates for different employees', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-
-      const dto1: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Employee 1 vacation',
-      };
-
-      const dto2: CreateLeaveRequestDto = {
-        employeeId: 'EMP002',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Employee 2 vacation',
-      };
-
-      const result1 = service.create(dto1);
-      const result2 = service.create(dto2);
-
-      expect(result1).toBeDefined();
-      expect(result2).toBeDefined();
-      expect(result1.employeeId).toBe('EMP001');
-      expect(result2.employeeId).toBe('EMP002');
     });
   });
 
   describe('findAll', () => {
-    it('should return empty array when no requests exist', () => {
-      const result = service.findAll();
-      expect(result).toEqual([]);
-    });
+    it('returns all requests', async () => {
+      const list = [buildLeaveRequest()];
+      repository.findAll.mockResolvedValue(list);
 
-    it('should return all leave requests', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-
-      const dto1: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
-
-      const dto2: CreateLeaveRequestDto = {
-        employeeId: 'EMP002',
-        leaveType: 'sick',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Sick leave',
-      };
-
-      service.create(dto1);
-      service.create(dto2);
-
-      const result = service.findAll();
-      expect(result).toHaveLength(2);
+      await expect(service.findAll()).resolves.toEqual(list);
+      expect(repository.findAll).toHaveBeenCalled();
     });
   });
 
   describe('findOne', () => {
-    it('should return a leave request by id', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+    it('returns an existing request', async () => {
+      const request = buildLeaveRequest();
+      repository.findById.mockResolvedValue(request);
 
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Test',
-      };
-
-      const created = service.create(dto);
-      const found = service.findOne(created.id);
-
-      expect(found).toBeDefined();
-      expect(found.id).toBe(created.id);
+      await expect(service.findOne('lr_1')).resolves.toEqual(request);
     });
 
-    it('should throw NotFoundException for non-existent id', () => {
-      expect(() => service.findOne('LR999999')).toThrow(NotFoundException);
-      expect(() => service.findOne('LR999999')).toThrow(
-        'Leave request with ID LR999999 not found',
+    it('throws when request is missing', async () => {
+      repository.findById.mockResolvedValue(null);
+
+      await expect(service.findOne('lr_missing')).rejects.toThrow(
+        NotFoundException,
       );
     });
   });
 
   describe('findByEmployee', () => {
-    it('should return all requests for a specific employee', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+    it('returns requests for the employee', async () => {
+      const list = [buildLeaveRequest({ employeeId: 'EMP999' })];
+      repository.findByEmployee.mockResolvedValue(list);
 
-      const dto1: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation 1',
-      };
-
-      const dto2: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'sick',
-        startDate: new Date(
-          nextWeek.getTime() + 10 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        endDate: new Date(
-          nextWeek.getTime() + 15 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        reason: 'Sick leave',
-      };
-
-      const dto3: CreateLeaveRequestDto = {
-        employeeId: 'EMP002',
-        leaveType: 'personal',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Personal',
-      };
-
-      service.create(dto1);
-      service.create(dto2);
-      service.create(dto3);
-
-      const result = service.findByEmployee('EMP001');
-      expect(result).toHaveLength(2);
-      expect(result.every((r) => r.employeeId === 'EMP001')).toBe(true);
+      await expect(service.findByEmployee('EMP999')).resolves.toEqual(list);
     });
   });
 
   describe('approve', () => {
-    it('should approve a pending leave request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+    it('updates the status when pending', async () => {
+      const pending = buildLeaveRequest();
+      const approved = buildLeaveRequest({ status: 'approved' });
+      repository.findById.mockResolvedValue(pending);
+      repository.updateStatus.mockResolvedValue(approved);
 
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
-
-      const created = service.create(dto);
-      const approved = service.approve(created.id);
-
-      expect(approved.status).toBe('approved');
-      expect(approved.updatedAt).toBeDefined();
+      await expect(service.approve('lr_1')).resolves.toEqual(approved);
+      expect(repository.updateStatus).toHaveBeenCalledWith('lr_1', 'approved');
     });
 
-    it('should throw error when approving non-pending request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+    it('throws when status is not pending', async () => {
+      repository.findById.mockResolvedValue(buildLeaveRequest({ status: 'approved' }));
 
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
-
-      const created = service.create(dto);
-      service.approve(created.id);
-
-      expect(() => service.approve(created.id)).toThrow(BadRequestException);
-      expect(() => service.approve(created.id)).toThrow(
+      await expect(service.approve('lr_1')).rejects.toThrow(
         'Cannot approve leave request with status: approved',
       );
     });
   });
 
   describe('reject', () => {
-    it('should reject a pending leave request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+    it('updates the status when pending', async () => {
+      const pending = buildLeaveRequest();
+      const rejected = buildLeaveRequest({ status: 'rejected' });
+      repository.findById.mockResolvedValue(pending);
+      repository.updateStatus.mockResolvedValue(rejected);
 
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
-
-      const created = service.create(dto);
-      const rejected = service.reject(created.id);
-
-      expect(rejected.status).toBe('rejected');
-      expect(rejected.updatedAt).toBeDefined();
-    });
-  });
-
-  describe('delete', () => {
-    it('should delete a pending leave request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
-
-      const created = service.create(dto);
-      service.delete(created.id);
-
-      expect(() => service.findOne(created.id)).toThrow(NotFoundException);
+      await expect(service.reject('lr_1')).resolves.toEqual(rejected);
+      expect(repository.updateStatus).toHaveBeenCalledWith('lr_1', 'rejected');
     });
 
-    it('should throw error when deleting approved request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+    it('throws when status is not pending', async () => {
+      repository.findById.mockResolvedValue(buildLeaveRequest({ status: 'approved' }));
 
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
-
-      const created = service.create(dto);
-      service.approve(created.id);
-
-      expect(() => service.delete(created.id)).toThrow(BadRequestException);
-      expect(() => service.delete(created.id)).toThrow(
-        'Cannot delete approved leave requests',
+      await expect(service.reject('lr_1')).rejects.toThrow(
+        'Cannot reject leave request with status: approved',
       );
     });
   });
 
-  describe('getStatistics', () => {
-    it('should return correct statistics for all requests', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  describe('delete', () => {
+    it('deletes non-approved requests', async () => {
+      repository.findById.mockResolvedValue(buildLeaveRequest({ status: 'pending' }));
+      repository.delete.mockResolvedValue(undefined);
 
-      const dto1: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
-
-      const dto2: CreateLeaveRequestDto = {
-        employeeId: 'EMP002',
-        leaveType: 'sick',
-        startDate: tomorrow.toISOString(),
-        endDate: new Date(
-          tomorrow.getTime() + 2 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        reason: 'Sick',
-      };
-
-      const created1 = service.create(dto1);
-      const created2 = service.create(dto2);
-      service.approve(created1.id);
-      service.reject(created2.id);
-
-      const stats = service.getStatistics();
-
-      expect(stats.total).toBe(2);
-      expect(stats.approved).toBe(1);
-      expect(stats.rejected).toBe(1);
-      expect(stats.pending).toBe(0);
-      expect(stats.totalDaysRequested).toBeGreaterThan(0);
+      await expect(service.delete('lr_1')).resolves.toBeUndefined();
+      expect(repository.delete).toHaveBeenCalledWith('lr_1');
     });
 
-    it('should return statistics for specific employee', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+    it('throws when request is approved', async () => {
+      repository.findById.mockResolvedValue(buildLeaveRequest({ status: 'approved' }));
 
-      const dto1: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
-
-      const dto2: CreateLeaveRequestDto = {
-        employeeId: 'EMP002',
-        leaveType: 'sick',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Sick',
-      };
-
-      service.create(dto1);
-      service.create(dto2);
-
-      const stats = service.getStatistics('EMP001');
-      expect(stats.total).toBe(1);
+      await expect(service.delete('lr_1')).rejects.toThrow(
+        'Cannot delete approved leave requests',
+      );
+      expect(repository.delete).not.toHaveBeenCalled();
     });
   });
 
-  describe('LeaveRequest entity', () => {
-    it('should calculate days requested correctly', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  describe('getStatistics', () => {
+    it('aggregates totals', async () => {
+      const list = [
+        buildLeaveRequest({ status: 'approved', startDate: new Date('2026-01-01'), endDate: new Date('2026-01-03') }),
+        buildLeaveRequest({ status: 'rejected', id: 'lr_2' }),
+        buildLeaveRequest({ status: 'pending', id: 'lr_3' }),
+      ];
+      repository.findMany.mockResolvedValue(list);
 
-      const dto: CreateLeaveRequestDto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      };
+      const stats = await service.getStatistics();
 
-      const request = service.create(dto);
-      const days = request.getDaysRequested();
+      expect(stats.total).toBe(3);
+      expect(stats.approved).toBe(1);
+      expect(stats.rejected).toBe(1);
+      expect(stats.pending).toBe(1);
+      const expectedDays = list.reduce(
+        (sum, request) => sum + request.getDaysRequested(),
+        0,
+      );
+      expect(stats.totalDaysRequested).toBe(expectedDays);
+    });
 
-      expect(days).toBeGreaterThan(0);
-      expect(days).toBe(7);
+    it('applies employee filtering', async () => {
+      repository.findMany.mockResolvedValue([buildLeaveRequest({ employeeId: 'EMP123' })]);
+
+      const stats = await service.getStatistics('EMP123');
+      expect(repository.findMany).toHaveBeenCalledWith({ employeeId: 'EMP123' });
+      expect(stats.total).toBe(1);
     });
   });
 });

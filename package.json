@@ -16,7 +16,12 @@
     "test:cov": "jest --coverage",
     "test:integration": "npm run build && npm run start:integration",
     "start:integration": "node dist/main & sleep 5 && newman run test/postman/leave-request-api.postman_collection.json && kill $!",
-    "postinstall": "husky || true"
+    "postinstall": "husky || true",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.ts": [
@@ -39,19 +44,23 @@
     "@nestjs/common": "^11.1.13",
     "@nestjs/core": "^11.1.13",
     "@nestjs/platform-express": "^11.1.13",
-    "better-sqlite3": "^12.6.2",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.4.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.16",
     "@nestjs/testing": "^11.1.13",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.2.3",
+    "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.55.0",
     "@typescript-eslint/parser": "^8.55.0",
+    "dotenv": "^17.3.1",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -60,6 +69,7 @@
     "lint-staged": "^16.2.7",
     "newman": "^6.2.2",
     "prettier": "^3.8.1",
+    "prisma": "^7.4.2",
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",

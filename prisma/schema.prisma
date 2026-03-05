@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model LeaveRequest {
+  id         String   @id @default(cuid())
+  employeeId String   @map("employee_id")
+  leaveType  String   @map("leave_type")
+  startDate  DateTime @map("start_date")
+  endDate    DateTime @map("end_date")
+  reason     String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([employeeId])
+  @@index([status])
+  @@map("leave_requests")
+}

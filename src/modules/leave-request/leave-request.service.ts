@@ -2,41 +2,16 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-  OnModuleDestroy,
 } from '@nestjs/common';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { LeaveRequest } from './leave-request.entity';
-import { DatabaseService } from '../../database/database.service';
+import { LeaveRequestRepository } from './leave-request.repository';
 
 @Injectable()
-export class LeaveRequestService implements OnModuleDestroy {
-  private db: DatabaseService;
-  private idCounter = 1;
+export class LeaveRequestService {
+  constructor(private readonly repository: LeaveRequestRepository) {}
 
-  constructor() {
-    const dbPath = process.env.NODE_ENV === 'test' ? ':memory:' : undefined;
-    this.db = new DatabaseService(dbPath);
-    this.initializeCounter();
-  }
-
-  onModuleDestroy() {
-    this.db.close();
-  }
-
-  private initializeCounter(): void {
-    const result = this.db
-      .getDatabase()
-      .prepare(
-        'SELECT MAX(CAST(SUBSTR(id, 3) AS INTEGER)) as max_id FROM leave_requests',
-      )
-      .get() as { max_id: number | null };
-
-    if (result.max_id) {
-      this.idCounter = result.max_id + 1;
-    }
-  }
-
-  create(createLeaveRequestDto: CreateLeaveRequestDto): LeaveRequest {
+  async create(createLeaveRequestDto: CreateLeaveRequestDto): Promise<LeaveRequest> {
     const { startDate, endDate, employeeId, leaveType, reason } =
       createLeaveRequestDto;
 
@@ -55,28 +30,11 @@ export class LeaveRequestService implements OnModuleDestroy {
       throw new BadRequestException('Cannot request leave in the past');
     }
 
-    const newRequest = new LeaveRequest({
-      id: `LR${String(this.idCounter++).padStart(6, '0')}`,
+    const overlapping = await this.repository.findOverlapping(
       employeeId,
-      leaveType,
-      startDate: start,
-      endDate: end,
-      reason,
-      status: 'pending',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    const overlapping = this.db
-      .getDatabase()
-      .prepare(
-        `SELECT * FROM leave_requests 
-         WHERE employee_id = ? 
-         AND status != 'rejected'
-         AND start_date <= ? 
-         AND end_date >= ?`,
-      )
-      .all(employeeId, end.toISOString(), start.toISOString());
+      start,
+      end,
+    );
 
     if (overlapping.length > 0) {
       throw new BadRequestException(
@@ -84,148 +42,85 @@ export class LeaveRequestService implements OnModuleDestroy {
       );
     }
 
-    this.db
-      .getDatabase()
-      .prepare(
-        `INSERT INTO leave_requests (id, employee_id, leave_type, start_date, end_date, reason, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        newRequest.id,
-        newRequest.employeeId,
-        newRequest.leaveType,
-        newRequest.startDate.toISOString(),
-        newRequest.endDate.toISOString(),
-        newRequest.reason,
-        newRequest.status,
-        newRequest.createdAt.toISOString(),
-        newRequest.updatedAt.toISOString(),
-      );
-
-    return newRequest;
+    return this.repository.create({
+      employeeId,
+      leaveType,
+      startDate: start,
+      endDate: end,
+      reason,
+      status: 'pending',
+    });
   }
 
-  findAll(): LeaveRequest[] {
-    const rows = this.db
-      .getDatabase()
-      .prepare('SELECT * FROM leave_requests ORDER BY created_at DESC')
-      .all();
-    return rows.map((row: any) => this.mapRowToLeaveRequest(row));
+  async findAll(): Promise<LeaveRequest[]> {
+    return this.repository.findAll();
   }
 
-  findOne(id: string): LeaveRequest {
-    const row = this.db
-      .getDatabase()
-      .prepare('SELECT * FROM leave_requests WHERE id = ?')
-      .get(id);
+  async findOne(id: string): Promise<LeaveRequest> {
+    const request = await this.repository.findById(id);
 
-    if (!row) {
+    if (!request) {
       throw new NotFoundException(`Leave request with ID ${id} not found`);
     }
 
-    return this.mapRowToLeaveRequest(row as any);
+    return request;
   }
 
-  findByEmployee(employeeId: string): LeaveRequest[] {
-    const rows = this.db
-      .getDatabase()
-      .prepare(
-        'SELECT * FROM leave_requests WHERE employee_id = ? ORDER BY created_at DESC',
-      )
-      .all(employeeId);
-    return rows.map((row: any) => this.mapRowToLeaveRequest(row));
+  async findByEmployee(employeeId: string): Promise<LeaveRequest[]> {
+    return this.repository.findByEmployee(employeeId);
   }
 
-  approve(id: string): LeaveRequest {
-    const request = this.findOne(id);
+  async approve(id: string): Promise<LeaveRequest> {
+    const request = await this.findOne(id);
     if (request.status !== 'pending') {
       throw new BadRequestException(
         `Cannot approve leave request with status: ${request.status}`,
       );
     }
 
-    const updatedAt = new Date().toISOString();
-    this.db
-      .getDatabase()
-      .prepare('UPDATE leave_requests SET status = ?, updated_at = ? WHERE id = ?')
-      .run('approved', updatedAt, id);
-
-    request.status = 'approved';
-    request.updatedAt = new Date(updatedAt);
-    return request;
+    return this.repository.updateStatus(id, 'approved');
   }
 
-  reject(id: string): LeaveRequest {
-    const request = this.findOne(id);
+  async reject(id: string): Promise<LeaveRequest> {
+    const request = await this.findOne(id);
     if (request.status !== 'pending') {
       throw new BadRequestException(
         `Cannot reject leave request with status: ${request.status}`,
       );
     }
 
-    const updatedAt = new Date().toISOString();
-    this.db
-      .getDatabase()
-      .prepare('UPDATE leave_requests SET status = ?, updated_at = ? WHERE id = ?')
-      .run('rejected', updatedAt, id);
-
-    request.status = 'rejected';
-    request.updatedAt = new Date(updatedAt);
-    return request;
+    return this.repository.updateStatus(id, 'rejected');
   }
 
-  delete(id: string): void {
-    const request = this.findOne(id);
+  async delete(id: string): Promise<void> {
+    const request = await this.findOne(id);
     if (request.status === 'approved') {
       throw new BadRequestException('Cannot delete approved leave requests');
     }
 
-    this.db
-      .getDatabase()
-      .prepare('DELETE FROM leave_requests WHERE id = ?')
-      .run(id);
+    await this.repository.delete(id);
   }
 
-  getStatistics(employeeId?: string): {
+  async getStatistics(employeeId?: string): Promise<{
     total: number;
     pending: number;
     approved: number;
     rejected: number;
     totalDaysRequested: number;
-  } {
-    let query = 'SELECT * FROM leave_requests';
-    const params: any[] = [];
-
-    if (employeeId) {
-      query += ' WHERE employee_id = ?';
-      params.push(employeeId);
-    }
-
-    const rows = this.db.getDatabase().prepare(query).all(...params);
-    const requests = rows.map((row: any) => this.mapRowToLeaveRequest(row));
+  }> {
+    const where = employeeId ? { employeeId } : undefined;
+    const leaveRequests = await this.repository.findMany(where);
 
     return {
-      total: requests.length,
-      pending: requests.filter((r) => r.status === 'pending').length,
-      approved: requests.filter((r) => r.status === 'approved').length,
-      rejected: requests.filter((r) => r.status === 'rejected').length,
-      totalDaysRequested: requests
-        .filter((r) => r.status === 'approved')
-        .reduce((sum, r) => sum + r.getDaysRequested(), 0),
+      total: leaveRequests.length,
+      pending: leaveRequests.filter((r) => r.status === 'pending').length,
+      approved: leaveRequests.filter((r) => r.status === 'approved').length,
+      rejected: leaveRequests.filter((r) => r.status === 'rejected').length,
+      totalDaysRequested: leaveRequests.reduce(
+        (sum, r) => sum + r.getDaysRequested(),
+        0,
+      ),
     };
   }
 
-  private mapRowToLeaveRequest(row: any): LeaveRequest {
-    return new LeaveRequest({
-      id: row.id,
-      employeeId: row.employee_id,
-      leaveType: row.leave_type,
-      startDate: new Date(row.start_date),
-      endDate: new Date(row.end_date),
-      reason: row.reason,
-      status: row.status,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
-    });
-  }
 }

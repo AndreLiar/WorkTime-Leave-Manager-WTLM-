@@ -1,194 +1,124 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LeaveRequestController } from '../../../../src/modules/leave-request/leave-request.controller';
 import { LeaveRequestService } from '../../../../src/modules/leave-request/leave-request.service';
+import { LeaveRequest } from '../../../../src/modules/leave-request/leave-request.entity';
+
+const buildLeaveRequest = (data?: Partial<LeaveRequest>): LeaveRequest =>
+  new LeaveRequest({
+    id: data?.id ?? 'lr_1',
+    employeeId: data?.employeeId ?? 'EMP001',
+    leaveType: data?.leaveType ?? 'vacation',
+    startDate:
+      data?.startDate ?? new Date('2026-03-15T00:00:00.000Z'),
+    endDate: data?.endDate ?? new Date('2026-03-20T00:00:00.000Z'),
+    reason: data?.reason ?? 'Family vacation',
+    status: data?.status ?? 'pending',
+    createdAt: data?.createdAt ?? new Date('2026-03-01T00:00:00.000Z'),
+    updatedAt: data?.updatedAt ?? new Date('2026-03-01T00:00:00.000Z'),
+  });
 
 describe('LeaveRequestController', () => {
   let controller: LeaveRequestController;
+  let service: jest.Mocked<LeaveRequestService>;
+
+  const dto = {
+    employeeId: 'EMP001',
+    leaveType: 'vacation' as const,
+    startDate: '2026-03-15T00:00:00.000Z',
+    endDate: '2026-03-20T00:00:00.000Z',
+    reason: 'Family vacation',
+  };
 
   beforeEach(async () => {
+    service = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findByEmployee: jest.fn(),
+      findOne: jest.fn(),
+      approve: jest.fn(),
+      reject: jest.fn(),
+      delete: jest.fn(),
+      getStatistics: jest.fn(),
+    } as unknown as jest.Mocked<LeaveRequestService>;
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LeaveRequestController],
-      providers: [LeaveRequestService],
+      providers: [{ provide: LeaveRequestService, useValue: service }],
     }).compile();
 
     controller = module.get<LeaveRequestController>(LeaveRequestController);
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('creates a leave request and maps response DTO', async () => {
+    const request = buildLeaveRequest();
+    service.create.mockResolvedValue(request);
+
+    const result = await controller.create(dto);
+
+    expect(result.id).toBe(request.id);
+    expect(result.employeeId).toBe('EMP001');
+    expect(service.create).toHaveBeenCalledWith(dto);
   });
 
-  describe('create', () => {
-    it('should create a leave request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  it('lists all requests when no employeeId filter', async () => {
+    const list = [buildLeaveRequest(), buildLeaveRequest({ id: 'lr_2' })];
+    service.findAll.mockResolvedValue(list);
 
-      const dto = {
-        employeeId: 'EMP001',
-        leaveType: 'vacation' as const,
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Family vacation',
-      };
+    const result = await controller.findAll();
 
-      const result = controller.create(dto);
-
-      expect(result).toBeDefined();
-      expect(result.employeeId).toBe('EMP001');
-      expect(result.status).toBe('pending');
-    });
+    expect(result).toHaveLength(2);
+    expect(service.findAll).toHaveBeenCalled();
   });
 
-  describe('findAll', () => {
-    it('should return all leave requests when no employeeId provided', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  it('filters requests by employeeId', async () => {
+    const list = [buildLeaveRequest({ employeeId: 'EMP999' })];
+    service.findByEmployee.mockResolvedValue(list);
 
-      controller.create({
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      });
+    const result = await controller.findAll('EMP999');
 
-      const result = controller.findAll();
-      expect(result).toHaveLength(1);
-    });
-
-    it('should filter by employeeId when provided', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-
-      controller.create({
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      });
-
-      controller.create({
-        employeeId: 'EMP002',
-        leaveType: 'sick',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Sick',
-      });
-
-      const result = controller.findAll('EMP001');
-      expect(result).toHaveLength(1);
-      expect(result[0].employeeId).toBe('EMP001');
-    });
+    expect(result).toHaveLength(1);
+    expect(result[0].employeeId).toBe('EMP999');
+    expect(service.findByEmployee).toHaveBeenCalledWith('EMP999');
   });
 
-  describe('findOne', () => {
-    it('should return a single leave request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  it('returns a single request', async () => {
+    const request = buildLeaveRequest();
+    service.findOne.mockResolvedValue(request);
 
-      const created = controller.create({
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Test',
-      });
-
-      const result = controller.findOne(created.id);
-      expect(result.id).toBe(created.id);
-    });
+    const result = await controller.findOne('lr_1');
+    expect(result.id).toBe('lr_1');
   });
 
-  describe('approve', () => {
-    it('should approve a leave request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  it('approves a request', async () => {
+    const approved = buildLeaveRequest({ status: 'approved' });
+    service.approve.mockResolvedValue(approved);
 
-      const created = controller.create({
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      });
-
-      const result = controller.approve(created.id);
-      expect(result.status).toBe('approved');
-    });
+    const result = await controller.approve('lr_1');
+    expect(result.status).toBe('approved');
+    expect(service.approve).toHaveBeenCalledWith('lr_1');
   });
 
-  describe('reject', () => {
-    it('should reject a leave request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  it('rejects a request', async () => {
+    const rejected = buildLeaveRequest({ status: 'rejected' });
+    service.reject.mockResolvedValue(rejected);
 
-      const created = controller.create({
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      });
-
-      const result = controller.reject(created.id);
-      expect(result.status).toBe('rejected');
-    });
+    const result = await controller.reject('lr_1');
+    expect(result.status).toBe('rejected');
   });
 
-  describe('remove', () => {
-    it('should delete a leave request', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  it('removes a request and returns confirmation', async () => {
+    service.delete.mockResolvedValue(undefined);
 
-      const created = controller.create({
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Test',
-      });
-
-      const result = controller.remove(created.id);
-      expect(result.message).toBe('Leave request deleted successfully');
-    });
+    const response = await controller.remove('lr_1');
+    expect(response).toEqual({ message: 'Leave request deleted successfully' });
+    expect(service.delete).toHaveBeenCalledWith('lr_1');
   });
 
-  describe('getStatistics', () => {
-    it('should return statistics', () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
+  it('returns statistics', async () => {
+    const stats = { total: 1, pending: 1, approved: 0, rejected: 0, totalDaysRequested: 2 };
+    service.getStatistics.mockResolvedValue(stats);
 
-      controller.create({
-        employeeId: 'EMP001',
-        leaveType: 'vacation',
-        startDate: tomorrow.toISOString(),
-        endDate: nextWeek.toISOString(),
-        reason: 'Vacation',
-      });
-
-      const stats = controller.getStatistics();
-      expect(stats).toHaveProperty('total');
-      expect(stats).toHaveProperty('pending');
-      expect(stats).toHaveProperty('approved');
-      expect(stats).toHaveProperty('rejected');
-      expect(stats.total).toBe(1);
-    });
+    expect(await controller.getStatistics()).toEqual(stats);
+    expect(service.getStatistics).toHaveBeenCalledWith(undefined);
   });
 });
