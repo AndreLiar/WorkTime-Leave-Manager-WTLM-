@@ -12,7 +12,8 @@ La documentation technique complète est disponible dans le dossier `docs/` :
 - Référence API complète
 - Schéma de base de données
 - Guide de déploiement
-- **🔄 [Versioning & Rollback Guide](./docs/DEPLOYMENT_VERSIONING.md)** - New!
+- **🔄 [Versioning & Rollback Guide](./docs/DEPLOYMENT_VERSIONING.md)**
+- **🔵 [PR Pipeline Guide](./docs/PR_PIPELINE.md)** - New!
 
 Pour consulter la documentation :
 ```bash
@@ -151,6 +152,18 @@ Le projet utilise deux branches principales :
 
 ### CI/CD Pipeline
 
+#### PR Pipeline (Feature → Dev) **NEW!**
+La pipeline PR se déclenche sur les Pull Requests vers `dev` :
+1. ✅ **Code Quality** - ESLint, TypeScript, Prettier
+2. ✅ **Unit Tests** - With coverage reporting
+3. ✅ **Build & Security** - Container vulnerability scanning
+4. ✅ **Dependency Scan** - npm audit + Snyk
+5. ✅ **SAST Scan** - CodeQL static analysis
+6. ✅ **Integration Tests** - Full API testing with database
+7. ✅ **PR Summary** - Automated status comment
+
+**See [PR Pipeline Guide](./docs/PR_PIPELINE.md) for details.**
+
 #### CI Pipeline
 La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main` et vérifie :
 1. Installation des dépendances
@@ -190,12 +203,14 @@ La pipeline CD se déclenche automatiquement sur push vers `main` :
 .
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml               # Pipeline CI
-│       ├── cd.yml               # Pipeline CD with versioning
-│       ├── rollback.yml         # Rollback workflow (NEW)
-│       └── list-versions.yml    # Version listing (NEW)
+│       ├── pr-pipeline.yml          # PR Pipeline (feature→dev) (NEW)
+│       ├── ci.yml                   # CI Pipeline
+│       ├── cd.yml                   # CD with versioning
+│       ├── rollback.yml             # Rollback workflow
+│       └── list-versions.yml        # Version listing
 ├── docs/
-│   └── DEPLOYMENT_VERSIONING.md # Versioning & rollback guide (NEW)
+│   ├── DEPLOYMENT_VERSIONING.md     # Versioning & rollback guide
+│   └── PR_PIPELINE.md               # PR pipeline guide (NEW)
 ├── prisma/
 │   └── schema.prisma       # Schéma de base de données Prisma
 ├── src/
