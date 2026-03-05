@@ -13,7 +13,6 @@ La documentation technique complète est disponible dans le dossier `docs/` :
 - Schéma de base de données
 - Guide de déploiement
 - **🔄 [Versioning & Rollback Guide](./docs/DEPLOYMENT_VERSIONING.md)**
-- **🔵 [PR Pipeline Guide](./docs/PR_PIPELINE.md)** - New!
 
 Pour consulter la documentation :
 ```bash
@@ -152,27 +151,24 @@ Le projet utilise deux branches principales :
 
 ### CI/CD Pipeline
 
-#### PR Pipeline (Feature → Dev) **NEW!**
-La pipeline PR se déclenche sur les Pull Requests vers `dev` :
-1. ✅ **Code Quality** - ESLint, TypeScript, Prettier
-2. ✅ **Unit Tests** - With coverage reporting
-3. ✅ **Build & Security** - Container vulnerability scanning
-4. ✅ **Dependency Scan** - npm audit + Snyk
-5. ✅ **SAST Scan** - CodeQL static analysis
-6. ✅ **Integration Tests** - Full API testing with database
-7. ✅ **PR Summary** - Automated status comment
+#### CI Pipeline (All PRs)
+**Optimized for small teams** - Single streamlined workflow that runs on ALL pull requests:
 
-**See [PR Pipeline Guide](./docs/PR_PIPELINE.md) for details.**
+**Triggers on PRs to:** `main`, `dev`, `develop`
 
-#### CI Pipeline
-La pipeline CI se déclenche automatiquement sur chaque Pull Request vers `main` et vérifie :
-1. Installation des dépendances
-2. Vérification TypeScript
-3. Linting du code
-4. Tests unitaires
-5. Build de l'application
+**What it does:**
+1. ✅ **Code Quality** - TypeScript + ESLint
+2. ✅ **Unit Tests** - Fast feedback
+3. ✅ **Build** - Ensure it compiles
+4. ✅ **Security** - npm audit
+5. ✅ **Integration Tests** - Full API testing (for dev branch PRs)
+6. ✅ **PR Comment** - Auto-summary of results
 
-#### CD Pipeline (with Versioning & Rollback)
+**Duration:** ~5-8 minutes
+
+**Philosophy:** Fast feedback for small teams. Less overhead, faster development.
+
+#### CD Pipeline (Production Deployment)
 La pipeline CD se déclenche automatiquement sur push vers `main` :
 1. ✅ **Automatic Semantic Versioning** - Creates version tag (YYYY.MM.DD-SHA)
 2. ✅ **Docker Build & Push** - Tagged with version to GHCR
@@ -203,14 +199,12 @@ La pipeline CD se déclenche automatiquement sur push vers `main` :
 .
 ├── .github/
 │   └── workflows/
-│       ├── pr-pipeline.yml          # PR Pipeline (feature→dev) (NEW)
-│       ├── ci.yml                   # CI Pipeline
+│       ├── ci.yml                   # Combined CI for all PRs
 │       ├── cd.yml                   # CD with versioning
 │       ├── rollback.yml             # Rollback workflow
 │       └── list-versions.yml        # Version listing
 ├── docs/
-│   ├── DEPLOYMENT_VERSIONING.md     # Versioning & rollback guide
-│   └── PR_PIPELINE.md               # PR pipeline guide (NEW)
+│   └── DEPLOYMENT_VERSIONING.md     # Versioning & rollback guide
 ├── prisma/
 │   └── schema.prisma       # Schéma de base de données Prisma
 ├── src/
