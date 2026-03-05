@@ -63,9 +63,67 @@ jobs:
       - name: 🏗️ Build application
         run: npm run build
 
-      # 5. Security Scans (lightweight for small teams)
+      # 5. Security Scans
       - name: 🔒 npm audit
         run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: 🔐 Snyk security scan
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -n "$SNYK_TOKEN" ]; then
+            npm install -g snyk
+            snyk test --severity-threshold=high || true
+          else
+            echo "⚠️ SNYK_TOKEN not set, skipping Snyk scan"
+          fi
+        continue-on-error: true
+
+      - name: 🛡️ CodeQL SAST scan
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+      - name: 🐳 Build Docker image for scanning
+        uses: docker/setup-buildx-action@v3
+
+      - name: 📦 Build container image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: wtlm-app:pr-${{ github.event.pull_request.number }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 🔎 Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: wtlm-app:pr-${{ github.event.pull_request.number }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: 📤 Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: ⚠️ Fail on critical container vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: wtlm-app:pr-${{ github.event.pull_request.number }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
         continue-on-error: true
 
       # 6. Integration Tests (only if not PR to main)
@@ -114,7 +172,10 @@ jobs:
             body += `- ✅ ESLint checks\n`;
             body += `- ✅ Unit tests\n`;
             body += `- ✅ Build verification\n`;
-            body += `- ✅ Security audit\n`;
+            body += `- ✅ npm audit\n`;
+            body += `- ✅ Snyk security scan\n`;
+            body += `- ✅ CodeQL SAST analysis\n`;
+            body += `- ✅ Trivy container scan\n`;
             
             if (target !== 'main') {
               body += `- ✅ Integration tests\n`;

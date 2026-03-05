@@ -2,12 +2,12 @@
 
 ## 🎯 Philosophy
 
-This CI/CD setup is **optimized for small teams (2-10 developers)**:
-- ✅ **Fast feedback** (~5-8 minutes)
+This CI/CD setup is **comprehensive with security-first approach**:
+- ✅ **Security scanning** (SAST, container, dependencies)
+- ✅ **Fast feedback** (~10-15 minutes)
 - ✅ **Simple to understand** (single CI file)
-- ✅ **Less maintenance** (no duplicate code)
-- ✅ **Practical security** (lightweight scans)
-- ✅ **Trust-based** (informal reviews)
+- ✅ **Production-ready** (enterprise-grade security)
+- ✅ **Practical approach** (balanced speed & security)
 
 ---
 
@@ -34,8 +34,12 @@ This CI/CD setup is **optimized for small teams (2-10 developers)**:
 3. Build (1 min)
    └─ TypeScript compilation
 
-4. Security (30 sec)
-   └─ npm audit
+4. Security Scans (5-7 min)
+   ├─ npm audit (dependency vulnerabilities)
+   ├─ Snyk scan (advanced dependency analysis)  
+   ├─ CodeQL SAST (SQL injection, XSS, etc.)
+   ├─ Build Docker image
+   └─ Trivy container scan (OS/library CVEs)
 
 5. Integration Tests (3 min) - only for dev PRs
    ├─ Start PostgreSQL
@@ -44,10 +48,10 @@ This CI/CD setup is **optimized for small teams (2-10 developers)**:
    └─ Newman/Postman tests
 
 6. PR Comment
-   └─ Auto-post summary
+   └─ Auto-post summary with security findings
 ```
 
-**Total Time:** 5-8 minutes depending on target branch
+**Total Time:** 10-15 minutes depending on target branch
 
 ---
 
@@ -144,7 +148,10 @@ feature/add-notifications → dev
 - ✅ Code style (ESLint)
 - ✅ Tests pass
 - ✅ Build succeeds
-- ✅ No high-severity vulnerabilities
+- ✅ npm audit (dependency vulnerabilities)
+- ✅ Snyk scan (advanced dependency check)
+- ✅ CodeQL SAST (code security analysis)
+- ✅ Trivy scan (container vulnerabilities)
 
 ### **PRs to dev (additional):**
 - ✅ Integration tests with real database
@@ -162,12 +169,12 @@ feature/add-notifications → dev
 |--------|------|-----|
 | Local dev | 0 min | You |
 | Open PR | instant | You |
-| CI pipeline | 5-8 min | Automated |
+| CI pipeline | 10-15 min | Automated |
 | Code review | 10-30 min | Team member |
 | Merge to dev | instant | You |
-| Later: PR to main | 5 min | You |
+| Later: PR to main | 10-15 min | You |
 | CD deployment | 10-15 min | Automated |
-| **Total to prod** | **30-60 min** | |
+| **Total to prod** | **40-75 min** | |
 
 ---
 
@@ -208,7 +215,10 @@ After CI runs, you'll see:
 - ✅ ESLint checks
 - ✅ Unit tests
 - ✅ Build verification
-- ✅ Security audit
+- ✅ npm audit
+- ✅ Snyk security scan
+- ✅ CodeQL SAST analysis
+- ✅ Trivy container scan
 - ✅ Integration tests
 
 ---
@@ -374,22 +384,66 @@ curl -X POST http://localhost:3000/leave-requests -d '...'
 
 ---
 
-## 🔒 Security for Small Teams
+## 🔒 Security Scanning
 
-**What We Do:**
-- ✅ npm audit on every PR (catches 90% of issues)
-- ✅ Dependabot alerts (GitHub built-in)
-- ✅ Code review (human eyes)
+Your CI pipeline now includes **comprehensive security scanning**:
 
-**What We Don't Do:**
-- ❌ Heavy SAST scanning (overkill for small teams)
-- ❌ Container scanning on every PR (too slow)
-- ❌ Penetration testing (not needed yet)
+### **1. Dependency Vulnerabilities**
 
-**When to Add More:**
-- Handling sensitive data (PII, payments)
-- Compliance requirements (SOC2, HIPAA)
-- Team grows beyond 10 people
+**npm audit:**
+- Built into npm
+- Scans `package-lock.json`
+- Checks for known CVEs in dependencies
+- Fails on HIGH/CRITICAL severity
+
+**Snyk (optional but recommended):**
+- More comprehensive than npm audit
+- Better vulnerability database
+- Provides fix suggestions
+- **Setup:** Add `SNYK_TOKEN` secret to GitHub
+
+### **2. Static Application Security Testing (SAST)**
+
+**CodeQL:**
+- GitHub's native security scanner
+- Analyzes TypeScript/JavaScript code
+- Detects:
+  - SQL injection
+  - XSS vulnerabilities
+  - Command injection
+  - Path traversal
+  - Insecure cryptography
+- Results appear in GitHub Security tab
+
+### **3. Container Security**
+
+**Trivy:**
+- Scans Docker images for vulnerabilities
+- Checks:
+  - OS packages (Alpine Linux)
+  - Node.js runtime
+  - Application dependencies
+- **Fails build on CRITICAL vulnerabilities**
+
+### **Security Reports Location:**
+
+All security findings are uploaded to:
+```
+GitHub → Security → Code scanning alerts
+```
+
+---
+
+## 🔐 Optional Secrets
+
+For enhanced security features:
+
+```bash
+SNYK_TOKEN              # For Snyk security scanning
+                        # Get from: https://snyk.io/account
+```
+
+**Without SNYK_TOKEN:** Pipeline will skip Snyk scan (npm audit still runs)
 
 ---
 

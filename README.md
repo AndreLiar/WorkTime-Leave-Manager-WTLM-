@@ -152,7 +152,7 @@ Le projet utilise deux branches principales :
 ### CI/CD Pipeline
 
 #### CI Pipeline (All PRs)
-**Optimized for small teams** - Single streamlined workflow that runs on ALL pull requests:
+**Comprehensive security scanning included** - Single streamlined workflow that runs on ALL pull requests:
 
 **Triggers on PRs to:** `main`, `dev`, `develop`
 
@@ -160,13 +160,17 @@ Le projet utilise deux branches principales :
 1. ✅ **Code Quality** - TypeScript + ESLint
 2. ✅ **Unit Tests** - Fast feedback
 3. ✅ **Build** - Ensure it compiles
-4. ✅ **Security** - npm audit
+4. ✅ **Security Scans**:
+   - npm audit (dependency vulnerabilities)
+   - Snyk scan (advanced dependency analysis)
+   - CodeQL SAST (code security analysis)
+   - Trivy (container vulnerability scanning)
 5. ✅ **Integration Tests** - Full API testing (for dev branch PRs)
 6. ✅ **PR Comment** - Auto-summary of results
 
-**Duration:** ~5-8 minutes
+**Duration:** ~10-15 minutes
 
-**Philosophy:** Fast feedback for small teams. Less overhead, faster development.
+**Philosophy:** Comprehensive security without compromising speed.
 
 #### CD Pipeline (Production Deployment)
 La pipeline CD se déclenche automatiquement sur push vers `main` :
