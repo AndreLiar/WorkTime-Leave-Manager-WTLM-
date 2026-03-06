@@ -27,6 +27,8 @@ jobs:
       # 1. Setup
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -255,6 +257,8 @@ jobs:
       # 1. Setup
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
