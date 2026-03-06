@@ -1,11 +1,15 @@
-import { defineConfig } from "prisma/config";
+import { defineConfig } from 'prisma/config';
+
+const connectionString =
+  process.env['DATABASE_URL'] ||
+  'postgresql://wtlm_user:wtlm_password@localhost:5432/wtlm_db';
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  schema: 'prisma/schema.prisma',
   migrations: {
-    path: "prisma/migrations",
+    path: 'prisma/migrations',
   },
   datasource: {
-    url: process.env["DATABASE_URL"] || "postgresql://wtlm_user:wtlm_password@localhost:5432/wtlm_db",
+    url: connectionString,
   },
 });
