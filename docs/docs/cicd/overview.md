@@ -97,6 +97,91 @@ git push origin staging
 
 ---
 
+## 🔄 Deployment & Rollback
+
+### Continuous Deployment (CD)
+
+**Trigger:** Push/merge to `main` branch
+
+**Process:**
+1. **Semantic Versioning** (~1 min)
+   - Generate version tag: `YYYY.MM.DD-SHA`
+   - Push tag to repository
+
+2. **Docker Build** (~5-7 min)
+   - Build production image
+   - Push to GitHub Container Registry
+   - Tag: `latest` + version number
+
+3. **Render Deployment** (~5-10 min)
+   - Trigger deployment via webhook
+   - Monitor deployment status
+   - Wait for "live" status
+
+4. **Smoke Tests** (~2-3 min)
+   - Health endpoint verification
+   - Critical API endpoint checks
+   - Response validation
+
+**Total Deployment Time:** 12-15 minutes
+
+---
+
+### 🚨 Automatic Rollback
+
+**New Feature:** Built-in safety net for failed deployments!
+
+**Triggers Automatically When:**
+- ❌ Render deployment fails
+- ❌ Smoke tests fail
+- ❌ Health checks timeout
+
+**Automatic Rollback Process:**
+
+```mermaid
+graph TD
+    A[Deployment Fails] -->|Auto-detect| B[Find Last Stable Version]
+    B --> C[Checkout Previous Code]
+    C --> D[Build/Pull Docker Image]
+    D --> E[Deploy to Render]
+    E --> F[Create GitHub Issue]
+    F --> G[Notify Team]
+```
+
+**What Happens:**
+1. **Detection** (~1 min)
+   - System detects failure
+   - Auto-rollback job starts
+
+2. **Version Selection** (~30 sec)
+   - Finds last successful deployment
+   - Validates version tag exists
+
+3. **Image Preparation** (~2-5 min)
+   - Pulls existing image OR rebuilds
+   - Verifies image integrity
+
+4. **Rollback Deployment** (~5-10 min)
+   - Deploys previous version
+   - Monitors status
+   - Confirms success
+
+5. **Notification** (~1 min)
+   - Creates GitHub issue
+   - Labels: `deployment-failure`, `auto-rollback`, `urgent`
+   - Includes failure details
+
+**Total Rollback Time:** 10-17 minutes
+
+**Manual Rollback Also Available:**
+- Via GitHub Actions UI
+- Supports any previous version
+- Includes rollback reason tracking
+
+📖 **Learn More:** [Rollback Playbook](./rollback-playbook.md)
+
+---
+
 ## 🔒 Security Scanning
 
 ### Multi-Layer Security

@@ -18,6 +18,8 @@ const sidebars: SidebarsConfig = {
         'cicd/overview',
         'cicd/branch-strategy',
         'cicd/developer-workflow',
+        'cicd/rollback-playbook',
+        'cicd/troubleshooting',
       ],
     },
     {
