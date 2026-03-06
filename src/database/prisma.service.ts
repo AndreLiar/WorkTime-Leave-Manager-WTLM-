@@ -12,12 +12,12 @@ export class PrismaService
     const connectionString =
       process.env.DATABASE_URL ||
       'postgresql://wtlm_user:wtlm_password@localhost:5432/wtlm_db';
-    const isRemote =
-      connectionString.includes('.render.com') ||
-      connectionString.includes('render.com');
     const pool = new Pool({
       connectionString,
-      ssl: isRemote ? { rejectUnauthorized: false } : false,
+      ssl:
+        process.env.NODE_ENV === 'production'
+          ? { rejectUnauthorized: false }
+          : false,
     });
     const adapter = new PrismaPg(pool);
 
