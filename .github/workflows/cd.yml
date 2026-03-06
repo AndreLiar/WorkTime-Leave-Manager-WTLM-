@@ -352,6 +352,14 @@ jobs:
           echo "🌐 Application URL: $APP_URL"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+      - name: Run K6 load tests
+        if: steps.deploy.outputs.deploy_id != ''
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: k6/load-test.js
+        env:
+          BASE_URL: ${{ secrets.RENDER_APP_URL }}
+
       - name: Store deployment info for rollback
         if: success()
         run: |
