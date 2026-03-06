@@ -360,6 +360,28 @@ jobs:
         env:
           BASE_URL: ${{ secrets.RENDER_APP_URL }}
 
+      - name: Run E2E regression suite
+        if: steps.deploy.outputs.deploy_id != ''
+        env:
+          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+        run: |
+          echo "🧪 Running E2E regression suite against live environment..."
+          APP_URL="${RENDER_APP_URL:-https://worktime-leave-manager-wtlm.onrender.com}"
+          echo "🌐 Target: $APP_URL"
+          echo ""
+
+          npm install -g newman --silent
+
+          newman run test/e2e/regression-collection.json \
+            --env-var "baseUrl=$APP_URL" \
+            --reporters cli \
+            --bail
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ E2E regression suite passed"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
       - name: Store deployment info for rollback
         if: success()
         run: |
