@@ -28,6 +28,7 @@ on:
 permissions:
   contents: write
   packages: write
+  issues: write
 
 jobs:
   # Determine which action to run
@@ -191,7 +192,19 @@ jobs:
               echo "🎯 Your service is now live on Render!"
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               exit 0
-            elif [ "$STATUS" = "build_failed" ] || [ "$STATUS" = "update_failed" ] || [ "$STATUS" = "deactivated" ]; then
+            elif [ "$STATUS" = "deactivated" ]; then
+              echo "⚠️  Deployment $DEPLOY_ID was deactivated (superseded by a newer deploy)."
+              echo "🔍 Switching to latest deployment on the service..."
+              LATEST_RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+                "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys?limit=1")
+              DEPLOY_ID=$(echo "$LATEST_RESPONSE" | jq -r '.[0].deploy.id // empty')
+              STATUS=$(echo "$LATEST_RESPONSE" | jq -r '.[0].deploy.status // "unknown"')
+              echo "📦 New Deployment ID: $DEPLOY_ID | Status: $STATUS"
+              if [ "$STATUS" = "live" ]; then
+                echo "✅ Latest deployment is already LIVE!"
+                exit 0
+              fi
+            elif [ "$STATUS" = "build_failed" ] || [ "$STATUS" = "update_failed" ]; then
               echo ""
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               echo "❌ Deployment failed with status: $STATUS"
