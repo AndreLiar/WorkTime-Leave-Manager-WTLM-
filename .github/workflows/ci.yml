@@ -174,14 +174,14 @@ jobs:
       # 4. E2E Tests (containerized)
       - name: 🧪 E2E tests with Docker
         run: |
-          docker-compose -f docker-compose.dev.yml up -d
+          docker compose -f docker-compose.dev.yml up -d
           sleep 15
-          docker-compose -f docker-compose.dev.yml logs
+          docker compose -f docker-compose.dev.yml logs
           
           # Run E2E tests against containerized app
-          docker-compose -f docker-compose.dev.yml exec -T app npm run test:e2e || true
+          docker compose -f docker-compose.dev.yml exec -T app npm run test:e2e || true
           
-          docker-compose -f docker-compose.dev.yml down
+          docker compose -f docker-compose.dev.yml down
 
       # 5. Security Scans (Deep)
       - name: 🛡️ CodeQL SAST scan
