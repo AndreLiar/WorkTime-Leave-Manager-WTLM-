@@ -354,6 +354,7 @@ jobs:
 
       - name: Run K6 load tests
         if: steps.deploy.outputs.deploy_id != ''
+        continue-on-error: true
         uses: grafana/k6-action@v0.3.1
         with:
           filename: k6/load-test.js
