@@ -37,6 +37,9 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      - name: 🔧 Generate Prisma Client
+        run: npm run prisma:generate
+
       # 2. Code Quality
       - name: 🔍 TypeScript check
         run: npm run ts
@@ -261,6 +264,9 @@ jobs:
 
       - name: 📦 Install dependencies
         run: npm ci
+
+      - name: 🔧 Generate Prisma Client
+        run: npm run prisma:generate
 
       # 2. Quick sanity checks
       - name: 🔍 TypeScript check
