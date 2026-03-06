@@ -39,7 +39,7 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"employeeId\": \"E2E-REGR-001\",\n  \"leaveType\": \"vacation\",\n  \"startDate\": \"2026-04-01T00:00:00.000Z\",\n  \"endDate\": \"2026-04-05T00:00:00.000Z\",\n  \"reason\": \"E2E regression test - to approve\"\n}"
+          "raw": "{\n  \"employeeId\": \"E2E-REGR-001\",\n  \"leaveType\": \"vacation\",\n  \"startDate\": \"2026-04-01T00:00:00Z\",\n  \"endDate\": \"2026-04-05T00:00:00Z\",\n  \"reason\": \"E2E regression test - to approve\"\n}"
         },
         "url": { "raw": "{{baseUrl}}/leave-requests", "host": ["{{baseUrl}}"], "path": ["leave-requests"] }
       },
@@ -72,7 +72,7 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"employeeId\": \"E2E-REGR-002\",\n  \"leaveType\": \"sick\",\n  \"startDate\": \"2026-04-10T00:00:00.000Z\",\n  \"endDate\": \"2026-04-12T00:00:00.000Z\",\n  \"reason\": \"E2E regression test - to reject\"\n}"
+          "raw": "{\n  \"employeeId\": \"E2E-REGR-002\",\n  \"leaveType\": \"sick\",\n  \"startDate\": \"2026-04-10T00:00:00Z\",\n  \"endDate\": \"2026-04-12T00:00:00Z\",\n  \"reason\": \"E2E regression test - to reject\"\n}"
         },
         "url": { "raw": "{{baseUrl}}/leave-requests", "host": ["{{baseUrl}}"], "path": ["leave-requests"] }
       },
