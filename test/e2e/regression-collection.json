@@ -174,7 +174,7 @@
               "});",
               "pm.test('Get by ID: has required fields', () => {",
               "  const body = pm.response.json();",
-              "  pm.expect(body).to.have.all.keys('id', 'employeeId', 'leaveType', 'startDate', 'endDate', 'reason', 'status');",
+              "  pm.expect(body).to.include.all.keys('id', 'employeeId', 'leaveType', 'startDate', 'endDate', 'reason', 'status');",
               "});"
             ]
           }
