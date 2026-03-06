@@ -1,0 +1,14 @@
+# Gitleaks configuration
+title = "gitleaks config"
+
+[allowlist]
+description = "Allowlist for documentation examples and test files"
+paths = [
+  '''docs/docs/cicd/troubleshooting\.md''',
+]
+
+# Allow example/dummy secrets in documentation
+regexes = [
+  '''AWS_SECRET_KEY=example''',
+  '''apiKey = 'sk-example''',
+]
