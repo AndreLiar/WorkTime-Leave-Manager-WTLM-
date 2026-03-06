@@ -24,13 +24,14 @@ export const options = {
     leave_request_duration: ['p(95)<2000'],
     statistics_duration: ['p(95)<2000'],
   },
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
 };
 
 const BASE_URL = __ENV.BASE_URL || 'https://worktime-leave-manager-wtlm.onrender.com';
 
 // Sample leave request payload
 function makeLeavePayload() {
-  const types = ['annual', 'sick', 'maternity', 'paternity', 'unpaid'];
+  const types = ['vacation', 'sick', 'personal', 'unpaid'];
   const type = types[Math.floor(Math.random() * types.length)];
   const start = new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000);
   const end = new Date(start.getTime() + (1 + Math.floor(Math.random() * 5)) * 24 * 60 * 60 * 1000);
