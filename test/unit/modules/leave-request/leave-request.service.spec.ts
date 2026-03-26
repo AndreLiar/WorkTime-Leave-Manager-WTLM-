@@ -1,32 +1,40 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LeaveRequestService } from '../../../../src/modules/leave-request/leave-request.service';
 import { LeaveRequestRepository } from '../../../../src/modules/leave-request/leave-request.repository';
+import { RedisService } from '../../../../src/redis/redis.service';
 import { CreateLeaveRequestDto } from '../../../../src/modules/leave-request/dto/create-leave-request.dto';
 import { LeaveRequest } from '../../../../src/modules/leave-request/leave-request.entity';
+
+const futureDate = (daysFromNow: number): Date => {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
 const buildLeaveRequest = (data?: Partial<LeaveRequest>): LeaveRequest =>
   new LeaveRequest({
     id: data?.id ?? 'lr_1',
     employeeId: data?.employeeId ?? 'EMP001',
     leaveType: data?.leaveType ?? 'vacation',
-    startDate:
-      data?.startDate ?? new Date('2026-03-15T00:00:00.000Z'),
-    endDate: data?.endDate ?? new Date('2026-03-20T00:00:00.000Z'),
+    startDate: data?.startDate ?? futureDate(10),
+    endDate: data?.endDate ?? futureDate(15),
     reason: data?.reason ?? 'Family vacation',
     status: data?.status ?? 'pending',
-    createdAt: data?.createdAt ?? new Date('2026-03-01T00:00:00.000Z'),
-    updatedAt: data?.updatedAt ?? new Date('2026-03-01T00:00:00.000Z'),
+    createdAt: data?.createdAt ?? new Date(),
+    updatedAt: data?.updatedAt ?? new Date(),
   });
 
 describe('LeaveRequestService', () => {
   let service: LeaveRequestService;
   let repository: jest.Mocked<LeaveRequestRepository>;
+  let redis: jest.Mocked<RedisService>;
 
   const validDto = (): CreateLeaveRequestDto => ({
     employeeId: 'EMP001',
     leaveType: 'vacation',
-    startDate: '2026-03-15T00:00:00.000Z',
-    endDate: '2026-03-20T00:00:00.000Z',
+    startDate: futureDate(10).toISOString(),
+    endDate: futureDate(15).toISOString(),
     reason: 'Family vacation',
   });
 
@@ -42,7 +50,14 @@ describe('LeaveRequestService', () => {
       findMany: jest.fn(),
     } as unknown as jest.Mocked<LeaveRequestRepository>;
 
-    service = new LeaveRequestService(repository);
+    redis = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
+      delPattern: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<RedisService>;
+
+    service = new LeaveRequestService(repository, redis);
   });
 
   describe('create', () => {
@@ -56,8 +71,8 @@ describe('LeaveRequestService', () => {
       expect(repository.create).toHaveBeenCalledWith({
         employeeId: 'EMP001',
         leaveType: 'vacation',
-        startDate: new Date('2026-03-15T00:00:00.000Z'),
-        endDate: new Date('2026-03-20T00:00:00.000Z'),
+        startDate: futureDate(10),
+        endDate: futureDate(15),
         reason: 'Family vacation',
         status: 'pending',
       });
@@ -77,8 +92,8 @@ describe('LeaveRequestService', () => {
     it('rejects start dates after end dates', async () => {
       const dto = {
         ...validDto(),
-        startDate: '2026-03-22T00:00:00.000Z',
-        endDate: '2026-03-20T00:00:00.000Z',
+        startDate: futureDate(15).toISOString(),
+        endDate: futureDate(10).toISOString(),
       };
 
       await expect(service.create(dto)).rejects.toThrow(
@@ -160,7 +175,9 @@ describe('LeaveRequestService', () => {
     });
 
     it('throws when status is not pending', async () => {
-      repository.findById.mockResolvedValue(buildLeaveRequest({ status: 'approved' }));
+      repository.findById.mockResolvedValue(
+        buildLeaveRequest({ status: 'approved' }),
+      );
 
       await expect(service.approve('lr_1')).rejects.toThrow(
         'Cannot approve leave request with status: approved',
@@ -180,7 +197,9 @@ describe('LeaveRequestService', () => {
     });
 
     it('throws when status is not pending', async () => {
-      repository.findById.mockResolvedValue(buildLeaveRequest({ status: 'approved' }));
+      repository.findById.mockResolvedValue(
+        buildLeaveRequest({ status: 'approved' }),
+      );
 
       await expect(service.reject('lr_1')).rejects.toThrow(
         'Cannot reject leave request with status: approved',
@@ -190,7 +209,9 @@ describe('LeaveRequestService', () => {
 
   describe('delete', () => {
     it('deletes non-approved requests', async () => {
-      repository.findById.mockResolvedValue(buildLeaveRequest({ status: 'pending' }));
+      repository.findById.mockResolvedValue(
+        buildLeaveRequest({ status: 'pending' }),
+      );
       repository.delete.mockResolvedValue(undefined);
 
       await expect(service.delete('lr_1')).resolves.toBeUndefined();
@@ -198,7 +219,9 @@ describe('LeaveRequestService', () => {
     });
 
     it('throws when request is approved', async () => {
-      repository.findById.mockResolvedValue(buildLeaveRequest({ status: 'approved' }));
+      repository.findById.mockResolvedValue(
+        buildLeaveRequest({ status: 'approved' }),
+      );
 
       await expect(service.delete('lr_1')).rejects.toThrow(
         'Cannot delete approved leave requests',
@@ -210,7 +233,11 @@ describe('LeaveRequestService', () => {
   describe('getStatistics', () => {
     it('aggregates totals', async () => {
       const list = [
-        buildLeaveRequest({ status: 'approved', startDate: new Date('2026-01-01'), endDate: new Date('2026-01-03') }),
+        buildLeaveRequest({
+          status: 'approved',
+          startDate: new Date('2026-01-01'),
+          endDate: new Date('2026-01-03'),
+        }),
         buildLeaveRequest({ status: 'rejected', id: 'lr_2' }),
         buildLeaveRequest({ status: 'pending', id: 'lr_3' }),
       ];
@@ -230,10 +257,14 @@ describe('LeaveRequestService', () => {
     });
 
     it('applies employee filtering', async () => {
-      repository.findMany.mockResolvedValue([buildLeaveRequest({ employeeId: 'EMP123' })]);
+      repository.findMany.mockResolvedValue([
+        buildLeaveRequest({ employeeId: 'EMP123' }),
+      ]);
 
       const stats = await service.getStatistics('EMP123');
-      expect(repository.findMany).toHaveBeenCalledWith({ employeeId: 'EMP123' });
+      expect(repository.findMany).toHaveBeenCalledWith({
+        employeeId: 'EMP123',
+      });
       expect(stats.total).toBe(1);
     });
   });
