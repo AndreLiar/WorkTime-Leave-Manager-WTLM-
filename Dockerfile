@@ -19,7 +19,7 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma
-COPY tsconfig.json ./
+COPY prisma.config.ts tsconfig.json ./
 
 RUN npm ci --only=production --ignore-scripts
 
