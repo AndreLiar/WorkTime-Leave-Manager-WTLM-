@@ -1,5 +1,7 @@
 FROM node:20.19.1-alpine3.21 AS builder
 
+RUN apk update && apk upgrade --no-cache
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -14,6 +16,8 @@ RUN npx prisma generate
 RUN npm run build
 
 FROM node:20.19.1-alpine3.21
+
+RUN apk update && apk upgrade --no-cache
 
 WORKDIR /app
 
