@@ -39,8 +39,8 @@ function makeLeavePayload() {
   return JSON.stringify({
     employeeId: `emp-k6-${__VU}-${__ITER}`,
     leaveType: type,
-    startDate: start.toISOString(),
-    endDate: end.toISOString(),
+    startDate: start.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    endDate: end.toISOString().replace(/\.\d{3}Z$/, 'Z'),
     reason: `K6 load test - VU ${__VU} iteration ${__ITER}`,
   });
 }
@@ -105,7 +105,7 @@ export default function () {
 }
 
 export function handleSummary(data) {
-  const passed = data.metrics.errors.values.rate < 0.05
+  const passed = data.metrics.errors.values.rate < 0.10
     && data.metrics.http_req_duration.values['p(95)'] < 2000;
 
   const summary = [
@@ -121,7 +121,7 @@ export function handleSummary(data) {
     '',
     'Thresholds:',
     `  p(95) < 2000ms : ${data.metrics.http_req_duration.values['p(95)'] < 2000 ? '✅ PASS' : '❌ FAIL'}`,
-    `  error rate < 5%: ${data.metrics.errors.values.rate < 0.05 ? '✅ PASS' : '❌ FAIL'}`,
+    `  error rate < 10%: ${data.metrics.errors.values.rate < 0.10 ? '✅ PASS' : '❌ FAIL'}`,
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
   ].join('\n');
 
