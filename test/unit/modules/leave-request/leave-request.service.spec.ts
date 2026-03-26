@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LeaveRequestService } from '../../../../src/modules/leave-request/leave-request.service';
 import { LeaveRequestRepository } from '../../../../src/modules/leave-request/leave-request.repository';
+import { RedisService } from '../../../../src/redis/redis.service';
 import { CreateLeaveRequestDto } from '../../../../src/modules/leave-request/dto/create-leave-request.dto';
 import { LeaveRequest } from '../../../../src/modules/leave-request/leave-request.entity';
 
@@ -27,6 +28,7 @@ const buildLeaveRequest = (data?: Partial<LeaveRequest>): LeaveRequest =>
 describe('LeaveRequestService', () => {
   let service: LeaveRequestService;
   let repository: jest.Mocked<LeaveRequestRepository>;
+  let redis: jest.Mocked<RedisService>;
 
   const validDto = (): CreateLeaveRequestDto => ({
     employeeId: 'EMP001',
@@ -48,7 +50,14 @@ describe('LeaveRequestService', () => {
       findMany: jest.fn(),
     } as unknown as jest.Mocked<LeaveRequestRepository>;
 
-    service = new LeaveRequestService(repository);
+    redis = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
+      delPattern: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<RedisService>;
+
+    service = new LeaveRequestService(repository, redis);
   });
 
   describe('create', () => {
