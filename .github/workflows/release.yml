@@ -42,7 +42,7 @@ jobs:
 
       - name: 🏗️ Build application
         if: ${{ steps.release.outputs.release_created }}
-        run: npm run build
+        run: npm run prisma:generate && npm run build
 
       - name: 📊 Release summary
         if: ${{ steps.release.outputs.release_created }}
