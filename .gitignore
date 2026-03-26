@@ -12,3 +12,8 @@ data/
 *.db-journal
 
 /generated/prisma
+
+# Local runtime files
+*.pid
+node/
+docs/node_modules/
