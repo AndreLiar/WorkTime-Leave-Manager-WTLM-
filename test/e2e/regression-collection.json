@@ -1,342 +1,501 @@
 {
-  "info": {
-    "name": "WTLM E2E Regression Suite",
-    "description": "Full regression suite run post-deploy against live Render environment. Tests complete business flows with assertions and request chaining.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "variable": [
-    { "key": "baseUrl", "value": "https://worktime-leave-manager-wtlm.onrender.com" },
-    { "key": "leaveId1", "value": "" },
-    { "key": "leaveId2", "value": "" }
-  ],
-  "item": [
-    {
-      "name": "1. Health Check",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Health: status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Health: body status is ok', () => {",
-              "  const body = pm.response.json();",
-              "  pm.expect(body.status).to.eql('ok');",
-              "});"
-            ]
-          }
-        }
-      ]
+    "info": {
+        "name": "WTLM E2E Regression Suite",
+        "description": "Full regression suite run post-deploy against live Render environment. Tests complete business flows with assertions and request chaining.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
-    {
-      "name": "2. Create Leave Request #1 (to approve)",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"employeeId\": \"E2E-REGR-001\",\n  \"leaveType\": \"vacation\",\n  \"startDate\": \"2026-04-01T00:00:00Z\",\n  \"endDate\": \"2026-04-05T00:00:00Z\",\n  \"reason\": \"E2E regression test - to approve\"\n}"
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "https://worktime-leave-manager-wtlm.onrender.com"
         },
-        "url": { "raw": "{{baseUrl}}/leave-requests", "host": ["{{baseUrl}}"], "path": ["leave-requests"] }
-      },
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Create #1: status 201', () => pm.response.to.have.status(201));",
-              "pm.test('Create #1: has id', () => {",
-              "  const body = pm.response.json();",
-              "  pm.expect(body.id).to.be.a('string').and.not.empty;",
-              "  pm.collectionVariables.set('leaveId1', body.id);",
-              "});",
-              "pm.test('Create #1: status is pending', () => {",
-              "  pm.expect(pm.response.json().status).to.eql('pending');",
-              "});",
-              "pm.test('Create #1: employeeId matches', () => {",
-              "  pm.expect(pm.response.json().employeeId).to.eql('E2E-REGR-001');",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "3. Create Leave Request #2 (to reject)",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"employeeId\": \"E2E-REGR-002\",\n  \"leaveType\": \"sick\",\n  \"startDate\": \"2026-04-10T00:00:00Z\",\n  \"endDate\": \"2026-04-12T00:00:00Z\",\n  \"reason\": \"E2E regression test - to reject\"\n}"
+            "key": "leaveId1",
+            "value": ""
         },
-        "url": { "raw": "{{baseUrl}}/leave-requests", "host": ["{{baseUrl}}"], "path": ["leave-requests"] }
-      },
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Create #2: status 201', () => pm.response.to.have.status(201));",
-              "pm.test('Create #2: has id', () => {",
-              "  const body = pm.response.json();",
-              "  pm.expect(body.id).to.be.a('string').and.not.empty;",
-              "  pm.collectionVariables.set('leaveId2', body.id);",
-              "});",
-              "pm.test('Create #2: leaveType is sick', () => {",
-              "  pm.expect(pm.response.json().leaveType).to.eql('sick');",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "4. Get All Leave Requests",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": { "raw": "{{baseUrl}}/leave-requests", "host": ["{{baseUrl}}"], "path": ["leave-requests"] }
-      },
-      "event": [
+            "key": "leaveId2",
+            "value": ""
+        },
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('List: status 200', () => pm.response.to.have.status(200));",
-              "pm.test('List: returns array', () => {",
-              "  pm.expect(pm.response.json()).to.be.an('array');",
-              "});",
-              "pm.test('List: contains created requests', () => {",
-              "  const ids = pm.response.json().map(r => r.id);",
-              "  pm.expect(ids).to.include(pm.collectionVariables.get('leaveId1'));",
-              "  pm.expect(ids).to.include(pm.collectionVariables.get('leaveId2'));",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "5. Get Leave Requests by Employee",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/leave-requests?employeeId=E2E-REGR-001",
-          "host": ["{{baseUrl}}"],
-          "path": ["leave-requests"],
-          "query": [{ "key": "employeeId", "value": "E2E-REGR-001" }]
-        }
-      },
-      "event": [
+            "key": "runId",
+            "value": ""
+        },
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Filter by employee: status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Filter by employee: returns array', () => {",
-              "  pm.expect(pm.response.json()).to.be.an('array');",
-              "});",
-              "pm.test('Filter by employee: all records belong to E2E-REGR-001', () => {",
-              "  pm.response.json().forEach(r => {",
-              "    pm.expect(r.employeeId).to.eql('E2E-REGR-001');",
-              "  });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "6. Get Leave Request by ID",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/leave-requests/{{leaveId1}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["leave-requests", "{{leaveId1}}"]
-        }
-      },
-      "event": [
+            "key": "empId1",
+            "value": ""
+        },
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Get by ID: status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Get by ID: id matches', () => {",
-              "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('leaveId1'));",
-              "});",
-              "pm.test('Get by ID: has required fields', () => {",
-              "  const body = pm.response.json();",
-              "  pm.expect(body).to.include.all.keys('id', 'employeeId', 'leaveType', 'startDate', 'endDate', 'reason', 'status');",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "7. Get Leave Statistics",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": { "raw": "{{baseUrl}}/leave-requests/statistics", "host": ["{{baseUrl}}"], "path": ["leave-requests", "statistics"] }
-      },
-      "event": [
+            "key": "empId2",
+            "value": ""
+        },
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Statistics: status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Statistics: has total field', () => {",
-              "  pm.expect(pm.response.json().total).to.be.a('number');",
-              "});",
-              "pm.test('Statistics: total >= 2', () => {",
-              "  pm.expect(pm.response.json().total).to.be.at.least(2);",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "8. Get Leave Statistics by Employee",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/leave-requests/statistics?employeeId=E2E-REGR-001",
-          "host": ["{{baseUrl}}"],
-          "path": ["leave-requests", "statistics"],
-          "query": [{ "key": "employeeId", "value": "E2E-REGR-001" }]
-        }
-      },
-      "event": [
+            "key": "startDate1",
+            "value": ""
+        },
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Statistics by employee: status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Statistics by employee: has total', () => {",
-              "  pm.expect(pm.response.json().total).to.be.a('number');",
-              "});",
-              "pm.test('Statistics by employee: total >= 1', () => {",
-              "  pm.expect(pm.response.json().total).to.be.at.least(1);",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "9. Approve Leave Request #1",
-      "request": {
-        "method": "PATCH",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/leave-requests/{{leaveId1}}/approve",
-          "host": ["{{baseUrl}}"],
-          "path": ["leave-requests", "{{leaveId1}}", "approve"]
-        }
-      },
-      "event": [
+            "key": "endDate1",
+            "value": ""
+        },
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Approve: status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Approve: status is approved', () => {",
-              "  pm.expect(pm.response.json().status).to.eql('approved');",
-              "});",
-              "pm.test('Approve: id matches', () => {",
-              "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('leaveId1'));",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "10. Reject Leave Request #2",
-      "request": {
-        "method": "PATCH",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/leave-requests/{{leaveId2}}/reject",
-          "host": ["{{baseUrl}}"],
-          "path": ["leave-requests", "{{leaveId2}}", "reject"]
-        }
-      },
-      "event": [
+            "key": "startDate2",
+            "value": ""
+        },
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Reject: status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Reject: status is rejected', () => {",
-              "  pm.expect(pm.response.json().status).to.eql('rejected');",
-              "});",
-              "pm.test('Reject: id matches', () => {",
-              "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('leaveId2'));",
-              "});"
-            ]
-          }
+            "key": "endDate2",
+            "value": ""
         }
-      ]
-    },
-    {
-      "name": "11. Cleanup - Delete Leave Request #1",
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/leave-requests/{{leaveId1}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["leave-requests", "{{leaveId1}}"]
-        }
-      },
-      "event": [
+    ],
+    "item": [
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Delete #1: status 200 or 204', () => {",
-              "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
-              "});"
+            "name": "1. Health Check",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/health",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "health"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Health: status 200', () => pm.response.to.have.status(200));",
+                            "pm.test('Health: body status is ok', () => {",
+                            "  const body = pm.response.json();",
+                            "  pm.expect(body.status).to.eql('ok');",
+                            "});"
+                        ]
+                    }
+                }
             ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "12. Cleanup - Delete Leave Request #2",
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/leave-requests/{{leaveId2}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["leave-requests", "{{leaveId2}}"]
-        }
-      },
-      "event": [
+        },
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Delete #2: status 200 or 204', () => {",
-              "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
-              "});"
+            "name": "2. Create Leave Request #1 (to approve)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"employeeId\": \"{{empId1}}\",\n  \"leaveType\": \"vacation\",\n  \"startDate\": \"{{startDate1}}\",\n  \"endDate\": \"{{endDate1}}\",\n  \"reason\": \"E2E regression test - to approve\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Create #1: status 201', () => pm.response.to.have.status(201));",
+                            "pm.test('Create #1: has id', () => {",
+                            "  const body = pm.response.json();",
+                            "  pm.expect(body.id).to.be.a('string').and.not.empty;",
+                            "  pm.collectionVariables.set('leaveId1', body.id);",
+                            "});",
+                            "pm.test('Create #1: status is pending', () => {",
+                            "  pm.expect(pm.response.json().status).to.eql('pending');",
+                            "});",
+                            "pm.test('Create #1: employeeId matches', () => {",
+                            "  pm.expect(pm.response.json().employeeId).to.eql(pm.collectionVariables.get('empId1'));",
+                            "});"
+                        ]
+                    }
+                }
             ]
-          }
+        },
+        {
+            "name": "3. Create Leave Request #2 (to reject)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"employeeId\": \"{{empId2}}\",\n  \"leaveType\": \"sick\",\n  \"startDate\": \"{{startDate2}}\",\n  \"endDate\": \"{{endDate2}}\",\n  \"reason\": \"E2E regression test - to reject\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Create #2: status 201', () => pm.response.to.have.status(201));",
+                            "pm.test('Create #2: has id', () => {",
+                            "  const body = pm.response.json();",
+                            "  pm.expect(body.id).to.be.a('string').and.not.empty;",
+                            "  pm.collectionVariables.set('leaveId2', body.id);",
+                            "});",
+                            "pm.test('Create #2: leaveType is sick', () => {",
+                            "  pm.expect(pm.response.json().leaveType).to.eql('sick');",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. Get All Leave Requests",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('List: status 200', () => pm.response.to.have.status(200));",
+                            "pm.test('List: returns array', () => {",
+                            "  pm.expect(pm.response.json()).to.be.an('array');",
+                            "});",
+                            "pm.test('List: contains created requests', () => {",
+                            "  const ids = pm.response.json().map(r => r.id);",
+                            "  pm.expect(ids).to.include(pm.collectionVariables.get('leaveId1'));",
+                            "  pm.expect(ids).to.include(pm.collectionVariables.get('leaveId2'));",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "5. Get Leave Requests by Employee",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests?employeeId={{empId1}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests"
+                    ],
+                    "query": [
+                        {
+                            "key": "employeeId",
+                            "value": "{{empId1}}"
+                        }
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Filter by employee: status 200', () => pm.response.to.have.status(200));",
+                            "pm.test('Filter by employee: returns array', () => {",
+                            "  pm.expect(pm.response.json()).to.be.an('array');",
+                            "});",
+                            "pm.test('Filter by employee: all records belong to E2E-REGR-001', () => {",
+                            "  pm.response.json().forEach(r => {",
+                            "    pm.expect(r.employeeId).to.eql(pm.collectionVariables.get('empId1'));",
+                            "  });",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "6. Get Leave Request by ID",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests/{{leaveId1}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests",
+                        "{{leaveId1}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Get by ID: status 200', () => pm.response.to.have.status(200));",
+                            "pm.test('Get by ID: id matches', () => {",
+                            "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('leaveId1'));",
+                            "});",
+                            "pm.test('Get by ID: has required fields', () => {",
+                            "  const body = pm.response.json();",
+                            "  pm.expect(body).to.include.all.keys('id', 'employeeId', 'leaveType', 'startDate', 'endDate', 'reason', 'status');",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "7. Get Leave Statistics",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests/statistics",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests",
+                        "statistics"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Statistics: status 200', () => pm.response.to.have.status(200));",
+                            "pm.test('Statistics: has total field', () => {",
+                            "  pm.expect(pm.response.json().total).to.be.a('number');",
+                            "});",
+                            "pm.test('Statistics: total >= 2', () => {",
+                            "  pm.expect(pm.response.json().total).to.be.at.least(2);",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "8. Get Leave Statistics by Employee",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests/statistics?employeeId={{empId1}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests",
+                        "statistics"
+                    ],
+                    "query": [
+                        {
+                            "key": "employeeId",
+                            "value": "{{empId1}}"
+                        }
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Statistics by employee: status 200', () => pm.response.to.have.status(200));",
+                            "pm.test('Statistics by employee: has total', () => {",
+                            "  pm.expect(pm.response.json().total).to.be.a('number');",
+                            "});",
+                            "pm.test('Statistics by employee: total >= 1', () => {",
+                            "  pm.expect(pm.response.json().total).to.be.at.least(1);",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "9. Approve Leave Request #1",
+            "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests/{{leaveId1}}/approve",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests",
+                        "{{leaveId1}}",
+                        "approve"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Approve: status 200', () => pm.response.to.have.status(200));",
+                            "pm.test('Approve: status is approved', () => {",
+                            "  pm.expect(pm.response.json().status).to.eql('approved');",
+                            "});",
+                            "pm.test('Approve: id matches', () => {",
+                            "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('leaveId1'));",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "10. Reject Leave Request #2",
+            "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests/{{leaveId2}}/reject",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests",
+                        "{{leaveId2}}",
+                        "reject"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Reject: status 200', () => pm.response.to.have.status(200));",
+                            "pm.test('Reject: status is rejected', () => {",
+                            "  pm.expect(pm.response.json().status).to.eql('rejected');",
+                            "});",
+                            "pm.test('Reject: id matches', () => {",
+                            "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('leaveId2'));",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "11. Cleanup - Delete Leave Request #1",
+            "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests/{{leaveId1}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests",
+                        "{{leaveId1}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Delete #1: status 200 or 204', () => {",
+                            "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                            "});"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "12. Cleanup - Delete Leave Request #2",
+            "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/leave-requests/{{leaveId2}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "leave-requests",
+                        "{{leaveId2}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Delete #2: status 200 or 204', () => {",
+                            "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                            "});"
+                        ]
+                    }
+                }
+            ]
         }
-      ]
-    }
-  ]
+    ],
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "exec": [
+                    "if (!pm.collectionVariables.get('runId')) {",
+                    "  const runId = Date.now().toString().slice(-6);",
+                    "  pm.collectionVariables.set('runId', runId);",
+                    "  pm.collectionVariables.set('empId1', 'E2E-REGR-001-' + runId);",
+                    "  pm.collectionVariables.set('empId2', 'E2E-REGR-002-' + runId);",
+                    "  const daysFromNow = (n) => {",
+                    "    const d = new Date();",
+                    "    d.setDate(d.getDate() + n);",
+                    "    d.setHours(0, 0, 0, 0);",
+                    "    return d.toISOString().replace(/\\.\\d{3}Z$/, 'Z');",
+                    "  };",
+                    "  pm.collectionVariables.set('startDate1', daysFromNow(30));",
+                    "  pm.collectionVariables.set('endDate1',   daysFromNow(35));",
+                    "  pm.collectionVariables.set('startDate2', daysFromNow(40));",
+                    "  pm.collectionVariables.set('endDate2',   daysFromNow(42));",
+                    "}"
+                ]
+            }
+        }
+    ]
 }
