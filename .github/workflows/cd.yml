@@ -379,7 +379,7 @@ jobs:
           NODE_ENV: production
         run: |
           echo "🌱 Running Prisma seed against production database..."
-          npm ci --silent
+          HUSKY=0 npm ci --silent
           npm run prisma:generate
           npm run prisma:seed
           echo "✅ Database seeded successfully"
