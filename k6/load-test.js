@@ -164,29 +164,71 @@ export default function () {
 export function handleSummary(data) {
   const errRate  = data.metrics.errors.values.rate;
   const p95      = data.metrics.http_req_duration.values['p(95)'];
+  const p99      = data.metrics.http_req_duration.values['p(99)'];
+  const avg      = data.metrics.http_req_duration.values.avg;
   const p95cache = data.metrics.cache_hit_duration
     ? data.metrics.cache_hit_duration.values['p(95)']
     : null;
   const passed = errRate < 0.10 && p95 < 3000;
 
+  // ── Plain-English interpretation helpers ──────────────────────────────────
+  function interpretErrorRate(rate) {
+    if (rate === 0)   return 'Perfect — no errors at all';
+    if (rate < 0.01)  return 'Excellent — less than 1 user in 100 saw an error';
+    if (rate < 0.05)  return 'Good — less than 5 users in 100 saw an error';
+    if (rate < 0.10)  return 'Acceptable — under 10% errors (at threshold limit)';
+    if (rate < 0.25)  return 'Degraded — 1 in 4 requests is failing';
+    return                   'Critical — more than 25% of requests are failing';
+  }
+
+  function interpretLatency(ms) {
+    if (ms < 300)   return 'Excellent — users barely notice the wait';
+    if (ms < 800)   return 'Good — feels fast to most users';
+    if (ms < 1500)  return 'Acceptable — slightly slow but usable';
+    if (ms < 3000)  return 'Slow — users may get frustrated';
+    return                 'Very slow — likely to cause user drop-off';
+  }
+
+  function interpretP99(ms) {
+    if (ms < 1000)   return 'Great — even the slowest 1% of users wait under 1s';
+    if (ms < 3000)   return 'OK — worst-case users wait a few seconds';
+    if (ms < 10000)  return 'Concerning — some users wait over 3s (DB saturation likely)';
+    return                  'Critical — some requests took ' + (ms / 1000).toFixed(0) + 's (DB/network overload)';
+  }
+
+  function interpretCache(ms) {
+    if (ms === null) return 'n/a';
+    if (ms < 100)    return ms.toFixed(0) + ' ms — Redis is serving cached data instantly';
+    if (ms < 500)    return ms.toFixed(0) + ' ms — Cache is working well';
+    if (ms < 2000)   return ms.toFixed(0) + ' ms — Cache responding but server is under load';
+    return                  ms.toFixed(0) + ' ms — Cache not helping: server CPU is saturated';
+  }
+
   const lines = [
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     `${passed ? '✅' : '❌'} K6 LOAD TEST SUMMARY`,
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    `Total requests  : ${data.metrics.http_reqs.values.count}`,
-    `Request rate    : ${data.metrics.http_reqs.values.rate.toFixed(2)} req/s`,
-    `Error rate      : ${(errRate * 100).toFixed(2)}%`,
-    `p95 latency     : ${p95.toFixed(0)} ms`,
-    `p99 latency     : ${data.metrics.http_req_duration.values['p(99)'].toFixed(0)} ms`,
-    `Avg latency     : ${data.metrics.http_req_duration.values.avg.toFixed(0)} ms`,
     '',
-    'Redis cache (cache_hit_duration p95):',
-    `  ${p95cache !== null ? p95cache.toFixed(0) + ' ms' : 'n/a'}`,
+    '📊 RAW NUMBERS',
+    `  Total requests : ${data.metrics.http_reqs.values.count}`,
+    `  Request rate   : ${data.metrics.http_reqs.values.rate.toFixed(2)} req/s`,
+    `  Error rate     : ${(errRate * 100).toFixed(2)}%`,
+    `  Avg latency    : ${avg.toFixed(0)} ms`,
+    `  p95 latency    : ${p95.toFixed(0)} ms`,
+    `  p99 latency    : ${p99.toFixed(0)} ms`,
+    `  Cache p95      : ${p95cache !== null ? p95cache.toFixed(0) + ' ms' : 'n/a'}`,
     '',
-    'Thresholds:',
-    `  p(95) < 3000ms        : ${p95 < 3000 ? '✅ PASS' : '❌ FAIL'}`,
-    `  error rate < 10%      : ${errRate < 0.10 ? '✅ PASS' : '❌ FAIL'}`,
-    `  cache p(95) < 2000ms  : ${p95cache !== null ? (p95cache < 2000 ? '✅ PASS' : '❌ FAIL') : 'n/a'}`,
+    '💬 WHAT THIS MEANS IN PLAIN ENGLISH',
+    `  Errors   → ${interpretErrorRate(errRate)}`,
+    `  Speed    → ${interpretLatency(avg)} (avg ${avg.toFixed(0)}ms)`,
+    `  Worst 5% → ${interpretLatency(p95)} (p95 ${p95.toFixed(0)}ms)`,
+    `  Worst 1% → ${interpretP99(p99)}`,
+    `  Redis    → ${interpretCache(p95cache)}`,
+    '',
+    '🎯 THRESHOLDS (pass = system is healthy under load)',
+    `  p(95) < 3000ms       : ${p95 < 3000 ? '✅ PASS' : '❌ FAIL'}  → 95% of users wait under 3s`,
+    `  error rate < 10%     : ${errRate < 0.10 ? '✅ PASS' : '❌ FAIL'}  → fewer than 1 in 10 requests fail`,
+    `  cache p(95) < 2000ms : ${p95cache !== null ? (p95cache < 2000 ? '✅ PASS' : '❌ FAIL') : 'n/a '}  → Redis cache responding within 2s`,
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
   ];
 
