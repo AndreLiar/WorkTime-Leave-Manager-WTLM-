@@ -1,6 +1,6 @@
 {
   "name": "worktime-leave-manager-wtlm-",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "WorkTime Leave Manager API with NestJS",
   "main": "dist/main.js",
   "scripts": {
