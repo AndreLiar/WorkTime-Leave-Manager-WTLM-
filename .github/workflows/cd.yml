@@ -197,8 +197,8 @@ jobs:
               echo "🔍 Switching to latest deployment on the service..."
               LATEST_RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
                 "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys?limit=1")
-              DEPLOY_ID=$(echo "$LATEST_RESPONSE" | jq -r '.[0].deploy.id // empty')
-              STATUS=$(echo "$LATEST_RESPONSE" | jq -r '.[0].deploy.status // "unknown"')
+              DEPLOY_ID=$(echo "$LATEST_RESPONSE" | jq -r '.[0].id // empty')
+              STATUS=$(echo "$LATEST_RESPONSE" | jq -r '.[0].status // "unknown"')
               echo "📦 New Deployment ID: $DEPLOY_ID | Status: $STATUS"
               if [ "$STATUS" = "live" ]; then
                 echo "✅ Latest deployment is already LIVE!"
