@@ -435,10 +435,8 @@
                     "listen": "test",
                     "script": {
                         "exec": [
-                            "// Approved requests cannot be deleted by design (service enforces this).",
-                            "// Accept 400 as expected alongside 200/204.",
-                            "pm.test('Delete #1: status 200, 204 or 400 (approved cannot be deleted)', () => {",
-                            "  pm.expect(pm.response.code).to.be.oneOf([200, 204, 400]);",
+                            "pm.test('Delete #1: status 200 or 204', () => {",
+                            "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
                             "});"
                         ]
                     }
