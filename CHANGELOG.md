@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.3](https://github.com/AndreLiar/WorkTime-Leave-Manager-WTLM-/compare/v1.0.2...v1.0.3) (2026-03-27)
+
+
+### 🐛 Bug Fixes
+
+* patch Alpine OS vulnerabilities with apk upgrade in both Docker stages ([db875e9](https://github.com/AndreLiar/WorkTime-Leave-Manager-WTLM-/commit/db875e9b9aa9920a1f4e44bf8862e9e072b746b6))
+* pin node base image to 20.19.1-alpine3.21 to resolve Dockerfile warnings ([f5b8f97](https://github.com/AndreLiar/WorkTime-Leave-Manager-WTLM-/commit/f5b8f97fa96ae34eb9c68099dd8b62d2314b70ef))
+
 ## [1.0.2](https://github.com/AndreLiar/WorkTime-Leave-Manager-WTLM-/compare/v1.0.1...v1.0.2) (2026-03-26)
 
 
