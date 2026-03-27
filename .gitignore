@@ -17,3 +17,6 @@ data/
 *.pid
 node/
 docs/node_modules/
+
+# Claude Code local instructions (personal, not for the repo)
+CLAUDE.md
